@@ -14,6 +14,11 @@ need and what it will cost.
   - Total = energy × 25
   - Base price (excl. GST) = total / 1.18
   - GST = total − base
+- **Charger power**: pick one of four chips (7 kW home AC, 30 / 60 / 120 kW DC)
+  to see an estimated charging time (`energy / (power × 0.9)`, allowing for losses
+  and tapering).
+- **Dark mode**: follows your system preference, with a toggle that remembers
+  your choice.
 - **Validation**: friendly messages when capacity ≤ 0, percentages fall outside
   0–100, or the target is not higher than the current charge.
 
