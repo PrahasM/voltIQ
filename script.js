@@ -123,8 +123,10 @@ function showError(error) {
   messageEl.hidden = false;
   resultsEl.classList.add("dimmed");
   outputEls.forEach((el) => {
-    el.textContent = "—";
+    const running = animations.get(el);
+    if (running) cancelAnimationFrame(running.frame);
     animations.delete(el);
+    el.textContent = "—";
   });
   batteryNowEl.style.width = "0%";
   batteryAddEl.style.width = "0%";
