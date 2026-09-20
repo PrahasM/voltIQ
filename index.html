@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
   <title>voltIQ – EV Charging Cost Calculator</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta name="theme-color" content="#16a34a" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -51,10 +53,10 @@
       <fieldset class="field chargers">
         <legend>Charger</legend>
         <div class="chips" role="radiogroup" aria-label="Charger power">
-          <label class="chip"><input type="radio" name="charger" value="7" /><span><strong>7 kW</strong><small>Home AC</small></span></label>
-          <label class="chip"><input type="radio" name="charger" value="30" /><span><strong>30 kW</strong><small>Fast DC</small></span></label>
-          <label class="chip"><input type="radio" name="charger" value="60" checked /><span><strong>60 kW</strong><small>Fast DC</small></span></label>
-          <label class="chip"><input type="radio" name="charger" value="120" /><span><strong>120 kW</strong><small>Rapid DC</small></span></label>
+          <label class="chip" style="--i: 0"><input type="radio" name="charger" value="7" /><span><strong>7 kW</strong><small>Home AC</small></span></label>
+          <label class="chip" style="--i: 1"><input type="radio" name="charger" value="30" /><span><strong>30 kW</strong><small>Fast DC</small></span></label>
+          <label class="chip" style="--i: 2"><input type="radio" name="charger" value="60" checked /><span><strong>60 kW</strong><small>Fast DC</small></span></label>
+          <label class="chip" style="--i: 3"><input type="radio" name="charger" value="120" /><span><strong>120 kW</strong><small>Rapid DC</small></span></label>
         </div>
       </fieldset>
     </form>
@@ -88,6 +90,10 @@
     </section>
 
     <p id="message" class="message" role="alert" hidden></p>
+
+    <footer class="footer">
+      Powered by <strong>Motion Intelligence</strong> <span class="mi">MI</span>
+    </footer>
   </main>
 
   <script src="script.js"></script>

@@ -19,6 +19,7 @@ const resultsEl = document.getElementById("results");
 const batteryNowEl = document.getElementById("battery-now");
 const batteryAddEl = document.getElementById("battery-add");
 const themeToggle = document.getElementById("theme-toggle");
+const heroEl = document.querySelector(".hero");
 
 const numberInputs = [capacityInput, currentInput, targetInput];
 const outputEls = [energyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
@@ -177,6 +178,9 @@ function calculate() {
 
   pop(totalEl.parentElement);
   pop(timeEl);
+  heroEl.classList.remove("glow");
+  void heroEl.offsetWidth;
+  heroEl.classList.add("glow");
 }
 
 numberInputs.forEach((el) => {
