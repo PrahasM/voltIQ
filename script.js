@@ -19,6 +19,7 @@ const resultsEl = document.getElementById("results");
 const batteryNowEl = document.getElementById("battery-now");
 const batteryAddEl = document.getElementById("battery-add");
 const themeToggle = document.getElementById("theme-toggle");
+const heroEl = document.querySelector(".hero");
 
 const numberInputs = [capacityInput, currentInput, targetInput];
 const outputEls = [energyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
@@ -123,8 +124,10 @@ function showError(error) {
   messageEl.hidden = false;
   resultsEl.classList.add("dimmed");
   outputEls.forEach((el) => {
-    el.textContent = "—";
+    const running = animations.get(el);
+    if (running) cancelAnimationFrame(running.frame);
     animations.delete(el);
+    el.textContent = "—";
   });
   batteryNowEl.style.width = "0%";
   batteryAddEl.style.width = "0%";
@@ -175,6 +178,9 @@ function calculate() {
 
   pop(totalEl.parentElement);
   pop(timeEl);
+  heroEl.classList.remove("glow");
+  void heroEl.offsetWidth;
+  heroEl.classList.add("glow");
 }
 
 numberInputs.forEach((el) => {
