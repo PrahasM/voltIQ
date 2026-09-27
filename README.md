@@ -21,6 +21,19 @@ need and what it will cost.
   22 kW (Fast DC), 60 kW (Fast DC, default), 120 kW (Rapid DC) — or choose
   **Custom** to type any charger power in kW. The app shows an estimated
   charging time (`energy / (power × 0.9)`, allowing for losses and tapering).
+- **Your name, your history** (no account, no server): on first open you pick a
+  short username. It is saved in the browser's `localStorage` on that device
+  (phone, tablet or laptop), so the app remembers you next time. Tap
+  **Switch user** to hand the device to someone else.
+- **Log this charge**: after a calculation, one tap records the session
+  (date, kWh, cost, rate, GST on/off, charger kW).
+- **History tab**: totals for money spent, energy charged, number of sessions
+  and average ₹/kWh, plus a list of every logged charge with per-entry delete,
+  **Export CSV** and **Clear history**.
+  - Data lives only on the device under `voltiq-user` and
+    `voltiq-log:<username>`; each entry is ~60 bytes of JSON and the log is
+    capped at 500 entries, so the footprint stays well under 50 KB.
+  - Different usernames on the same device keep separate histories.
 - **Dark mode**: follows your system preference, with a toggle that remembers
   your choice.
 - **Validation**: friendly messages when capacity ≤ 0, percentages fall outside

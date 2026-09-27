@@ -25,6 +25,27 @@
       </button>
     </header>
 
+    <section id="user-setup" class="user-setup" hidden>
+      <h2>Who's charging?</h2>
+      <p>Pick a name so voltIQ can keep your charging history on this device. Nothing leaves your phone.</p>
+      <form id="user-form" class="user-form" novalidate>
+        <input type="text" id="username" name="username" maxlength="24" autocomplete="nickname" placeholder="e.g. pradeep" autocapitalize="off" />
+        <button type="submit" class="btn btn-primary">Continue</button>
+      </form>
+    </section>
+
+    <div id="app" class="app" hidden>
+    <div class="user-bar">
+      <span class="user-name">Hi, <strong id="user-label"></strong></span>
+      <button type="button" id="switch-user" class="btn btn-ghost">Switch user</button>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button type="button" class="tab" role="tab" id="tab-calc" aria-controls="panel-calc" aria-selected="true">Calculator</button>
+      <button type="button" class="tab" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false">History <span id="history-count" class="badge" hidden></span></button>
+    </nav>
+
+    <section id="panel-calc" class="panel" role="tabpanel" aria-labelledby="tab-calc">
     <form id="calc-form" novalidate>
       <div class="field">
         <label for="capacity">Battery capacity <span class="unit">kWh</span></label>
@@ -110,6 +131,40 @@
     </section>
 
     <p id="message" class="message" role="alert" hidden></p>
+
+    <button type="button" id="log-btn" class="btn btn-primary btn-block">Log this charge</button>
+    <p id="log-toast" class="toast" role="status" hidden></p>
+    </section>
+
+    <section id="panel-history" class="panel" role="tabpanel" aria-labelledby="tab-history" hidden>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Total spent</span>
+          <span class="stat-value">₹<span id="hist-spent">0.00</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total charged</span>
+          <span class="stat-value"><span id="hist-energy">0.0</span> <small>kWh</small></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Sessions</span>
+          <span class="stat-value" id="hist-sessions">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Avg ₹ / kWh</span>
+          <span class="stat-value">₹<span id="hist-avg">—</span></span>
+        </div>
+      </div>
+
+      <p id="history-empty" class="history-empty">No charges logged yet. Run a calculation and tap <strong>Log this charge</strong>.</p>
+      <ul id="history-list" class="history-list"></ul>
+
+      <div class="history-actions">
+        <button type="button" id="export-btn" class="btn btn-ghost">Export CSV</button>
+        <button type="button" id="clear-btn" class="btn btn-danger">Clear history</button>
+      </div>
+    </section>
+    </div>
 
     <footer class="footer">
       Powered by <strong>Motion Intelligence</strong> <span class="mi">MI</span>
