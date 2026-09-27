@@ -201,8 +201,10 @@ input[type="text"]:focus {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-input.invalid {
+input.invalid,
+input.invalid:focus {
   border-color: var(--error);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--error) 22%, transparent);
   animation: shake 0.35s;
 }
 
