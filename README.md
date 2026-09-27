@@ -10,13 +10,17 @@ need and what it will cost.
   battery % (default 100). All fields are independent and results update live as
   you type.
 - **Energy to add**: `capacity × (target% − current%) / 100` kWh.
-- **Cost**: charging rate of **₹25 / kWh**, which already includes 18% GST.
-  - Total = energy × 25
-  - Base price (excl. GST) = total / 1.18
-  - GST = total − base
-- **Charger power**: pick one of four chips (7 kW home AC, 30 / 60 / 120 kW DC)
-  to see an estimated charging time (`energy / (power × 0.9)`, allowing for losses
-  and tapering).
+- **Rate**: drag a slider to pick the charging rate, ₹5–₹40 / kWh in ₹0.50 steps
+  (default ₹25). The chosen rate is shown live and echoed under the total.
+- **GST toggle** ("Include 18% GST", on by default):
+  - ON – the rate is treated as GST-inclusive: total = energy × rate,
+    base (excl. GST) = total / 1.18, GST = total − base.
+  - OFF – total = energy × rate with no GST; base = total, GST = 0 and the GST
+    row is hidden from the breakdown.
+- **Charger power**: tap one of the chips — 3 kW (Home), 7 kW (Home AC),
+  22 kW (Fast DC), 60 kW (Fast DC, default), 120 kW (Rapid DC) — or choose
+  **Custom** to type any charger power in kW. The app shows an estimated
+  charging time (`energy / (power × 0.9)`, allowing for losses and tapering).
 - **Dark mode**: follows your system preference, with a toggle that remembers
   your choice.
 - **Validation**: friendly messages when capacity ≤ 0, percentages fall outside

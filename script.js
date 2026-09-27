@@ -1,4 +1,3 @@
-const RATE_PER_KWH = 25; // ₹, inclusive of GST
 const GST_RATE = 0.18;
 const CHARGING_EFFICIENCY = 0.9; // rough allowance for losses and tapering
 const THEME_KEY = "voltiq-theme";
@@ -7,6 +6,13 @@ const capacityInput = document.getElementById("capacity");
 const currentInput = document.getElementById("current");
 const targetInput = document.getElementById("target");
 const chargerInputs = Array.from(document.querySelectorAll('input[name="charger"]'));
+const rateInput = document.getElementById("rate");
+const rateValueEl = document.getElementById("rate-value");
+const gstToggle = document.getElementById("gst-toggle");
+const customChargerEl = document.getElementById("custom-charger");
+const customKwInput = document.getElementById("custom-kw");
+const heroSubEl = document.getElementById("hero-sub");
+const gstRowEl = document.getElementById("gst-row");
 
 const energyEl = document.getElementById("energy");
 const timeEl = document.getElementById("time");
@@ -21,7 +27,7 @@ const batteryAddEl = document.getElementById("battery-add");
 const themeToggle = document.getElementById("theme-toggle");
 const heroEl = document.querySelector(".hero");
 
-const numberInputs = [capacityInput, currentInput, targetInput];
+const numberInputs = [capacityInput, currentInput, targetInput, customKwInput];
 const outputEls = [energyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -48,6 +54,10 @@ themeToggle.addEventListener("click", () => {
 
 function formatMoney(value) {
   return value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatRate(value) {
+  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 1 })} / kWh`;
 }
 
 function formatEnergy(value) {
@@ -102,7 +112,7 @@ function pop(el) {
 
 /* ---------- Validation ---------- */
 
-function validate(capacity, current, target) {
+function validate(capacity, current, target, chargerKw) {
   if (Number.isNaN(capacity) || capacity <= 0) {
     return { field: capacityInput, text: "Please enter a battery capacity greater than 0 kWh." };
   }
@@ -114,6 +124,9 @@ function validate(capacity, current, target) {
   }
   if (target <= current) {
     return { field: targetInput, text: "Charge to must be higher than your current battery level." };
+  }
+  if (isCustomCharger() && (Number.isNaN(chargerKw) || chargerKw <= 0)) {
+    return { field: customKwInput, text: "Please enter a charger power greater than 0 kW." };
   }
   return null;
 }
@@ -142,9 +155,29 @@ function clearError() {
 
 /* ---------- Calculation ---------- */
 
+function isCustomCharger() {
+  const checked = chargerInputs.find((el) => el.checked);
+  return Boolean(checked) && checked.value === "custom";
+}
+
 function selectedChargerKw() {
+  if (isCustomCharger()) return parseFloat(customKwInput.value);
   const checked = chargerInputs.find((el) => el.checked);
   return checked ? parseFloat(checked.value) : NaN;
+}
+
+function syncCustomCharger() {
+  const custom = isCustomCharger();
+  customChargerEl.hidden = !custom;
+  if (custom) customKwInput.focus();
+}
+
+function updateRateLabel() {
+  rateValueEl.textContent = formatRate(parseFloat(rateInput.value));
+}
+
+function updateHeroSub(rate, gstOn) {
+  heroSubEl.textContent = `at ${formatRate(rate)} · ${gstOn ? "includes 18% GST" : "no GST"}`;
 }
 
 function calculate() {
@@ -152,8 +185,13 @@ function calculate() {
   const current = parseFloat(currentInput.value);
   const target = parseFloat(targetInput.value);
   const chargerKw = selectedChargerKw();
+  const rate = parseFloat(rateInput.value);
+  const gstOn = gstToggle.checked;
 
-  const error = validate(capacity, current, target);
+  updateHeroSub(rate, gstOn);
+  gstRowEl.hidden = !gstOn;
+
+  const error = validate(capacity, current, target, chargerKw);
   if (error) {
     showError(error);
     return;
@@ -161,8 +199,8 @@ function calculate() {
   clearError();
 
   const energy = (capacity * (target - current)) / 100;
-  const total = energy * RATE_PER_KWH;
-  const base = total / (1 + GST_RATE);
+  const total = energy * rate;
+  const base = gstOn ? total / (1 + GST_RATE) : total;
   const gst = total - base;
   const hours = energy / (chargerKw * CHARGING_EFFICIENCY);
 
@@ -187,7 +225,19 @@ numberInputs.forEach((el) => {
   el.addEventListener("input", calculate);
   el.addEventListener("change", calculate);
 });
-chargerInputs.forEach((el) => el.addEventListener("change", calculate));
+chargerInputs.forEach((el) =>
+  el.addEventListener("change", () => {
+    syncCustomCharger();
+    calculate();
+  })
+);
+rateInput.addEventListener("input", () => {
+  updateRateLabel();
+  calculate();
+});
+gstToggle.addEventListener("change", calculate);
 
 initTheme();
+updateRateLabel();
+syncCustomCharger();
 calculate();
