@@ -9,24 +9,30 @@ need and what it will cost.
 - **Inputs**: battery capacity in kWh (default 79), current battery % and target
   battery % (default 85, the level most EVs recommend for daily charging). All fields are independent and results update live as
   you type.
-- **Energy to add**: `capacity × (target% − current%) / 100` kWh.
+- **Energy to add**: `capacity × (target% − current%) / 100` kWh reaches the battery.
+- **Energy to buy**: `energy to add / charging efficiency` kWh is delivered by the
+  charger, accounting for charging losses. This is the energy used to price the charge.
+- **Settings**: DC efficiency defaults to 92% and AC efficiency to 87%. Edit either
+  value from 50–100% in the Settings tab; changes recalculate results and are saved
+  on this device in `localStorage`.
 - **Rate**: drag a slider to pick the charging rate, ₹5–₹40 / kWh in ₹0.50 steps
   (default ₹25). The chosen rate is shown live and echoed under the total.
 - **GST toggle** ("Include 18% GST", on by default):
-  - ON – the rate is treated as GST-inclusive: total = energy × rate,
+  - ON – the rate is treated as GST-inclusive: total = energy to buy × rate,
     base (excl. GST) = total / 1.18, GST = total − base.
-  - OFF – total = energy × rate with no GST; base = total, GST = 0 and the GST
+  - OFF – total = energy to buy × rate with no GST; base = total, GST = 0 and the GST
     row is hidden from the breakdown.
 - **Charger power**: tap one of the chips — 3 kW (Home), 7 kW (Home AC),
   22 kW (Fast DC), 60 kW (Fast DC, default), 120 kW (Rapid DC) — or choose
-  **Custom** to type any charger power in kW. The app shows an estimated
-  charging time (`energy / (power × 0.9)`, allowing for losses and tapering).
+  **Custom** to type any charger power in kW and choose AC or DC. The 3 and 7 kW
+  presets use AC efficiency; the 22, 60 and 120 kW presets use DC efficiency.
+  Estimated charging time is `energy to buy / charger power`.
 - **Your name, your history** (no account, no server): on first open you pick a
   short username. It is saved in the browser's `localStorage` on that device
   (phone, tablet or laptop), so the app remembers you next time. Tap
   **Switch user** to hand the device to someone else.
 - **Log this charge**: after a calculation, one tap records the session
-  (date, kWh, cost, rate, GST on/off, charger kW).
+  (date, battery-side kWh added, cost, rate, GST on/off, charger kW).
 - **History tab**: totals for money spent, energy charged, number of sessions
   and average ₹/kWh, plus a list of every logged charge with per-entry delete,
   **Export CSV** and **Clear history**.

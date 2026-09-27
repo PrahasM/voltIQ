@@ -1,5 +1,8 @@
 const GST_RATE = 0.18;
-const CHARGING_EFFICIENCY = 0.9; // rough allowance for losses and tapering
+const DEFAULT_DC_EFFICIENCY = 0.92;
+const DEFAULT_AC_EFFICIENCY = 0.87;
+const DC_EFFICIENCY_KEY = "voltiq-eff-dc";
+const AC_EFFICIENCY_KEY = "voltiq-eff-ac";
 const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
@@ -14,10 +17,15 @@ const rateValueEl = document.getElementById("rate-value");
 const gstToggle = document.getElementById("gst-toggle");
 const customChargerEl = document.getElementById("custom-charger");
 const customKwInput = document.getElementById("custom-kw");
+const customTypeInput = document.getElementById("custom-type");
+const dcEfficiencyInput = document.getElementById("eff-dc");
+const acEfficiencyInput = document.getElementById("eff-ac");
+const settingsMessageEl = document.getElementById("settings-message");
 const heroSubEl = document.getElementById("hero-sub");
 const gstRowEl = document.getElementById("gst-row");
 
 const energyEl = document.getElementById("energy");
+const energyBuyEl = document.getElementById("energy-buy");
 const timeEl = document.getElementById("time");
 const totalEl = document.getElementById("total");
 const totalBreakdownEl = document.getElementById("total-breakdown");
@@ -50,7 +58,7 @@ const exportBtn = document.getElementById("export-btn");
 const clearBtn = document.getElementById("clear-btn");
 
 const numberInputs = [capacityInput, currentInput, targetInput, customKwInput];
-const outputEls = [energyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
+const outputEls = [energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- Theme ---------- */
@@ -426,6 +434,41 @@ clearBtn.addEventListener("click", clearHistory);
 
 /* ---------- Calculation ---------- */
 
+let dcEfficiency = DEFAULT_DC_EFFICIENCY;
+let acEfficiency = DEFAULT_AC_EFFICIENCY;
+
+function loadEfficiency(key, fallback) {
+  const stored = storageGet(key);
+  const percent = Number(stored);
+  return stored !== null && Number.isFinite(percent) && percent >= 50 && percent <= 100
+    ? percent / 100
+    : fallback;
+}
+
+function initEfficiency() {
+  dcEfficiency = loadEfficiency(DC_EFFICIENCY_KEY, DEFAULT_DC_EFFICIENCY);
+  acEfficiency = loadEfficiency(AC_EFFICIENCY_KEY, DEFAULT_AC_EFFICIENCY);
+  dcEfficiencyInput.value = String(Number((dcEfficiency * 100).toFixed(10)));
+  acEfficiencyInput.value = String(Number((acEfficiency * 100).toFixed(10)));
+}
+
+function updateEfficiency(input, key) {
+  const percent = Number(input.value);
+  if (!input.value || !input.validity.valid || !Number.isFinite(percent) || percent < 50 || percent > 100) {
+    input.classList.add("invalid");
+    settingsMessageEl.textContent = "Efficiency must be between 50% and 100%.";
+    settingsMessageEl.hidden = false;
+    return;
+  }
+
+  input.classList.remove("invalid");
+  settingsMessageEl.hidden = [dcEfficiencyInput, acEfficiencyInput].every((el) => !el.classList.contains("invalid"));
+  if (key === DC_EFFICIENCY_KEY) dcEfficiency = percent / 100;
+  else acEfficiency = percent / 100;
+  storageSet(key, String(percent));
+  calculate();
+}
+
 function isCustomCharger() {
   const checked = chargerInputs.find((el) => el.checked);
   return Boolean(checked) && checked.value === "custom";
@@ -435,6 +478,12 @@ function selectedChargerKw() {
   if (isCustomCharger()) return parseFloat(customKwInput.value);
   const checked = chargerInputs.find((el) => el.checked);
   return checked ? parseFloat(checked.value) : NaN;
+}
+
+function selectedEfficiency() {
+  const checked = chargerInputs.find((el) => el.checked);
+  const type = checked?.value === "custom" ? customTypeInput.value : checked?.dataset.type;
+  return type === "ac" ? acEfficiency : dcEfficiency;
 }
 
 function syncCustomCharger() {
@@ -473,13 +522,16 @@ function calculate() {
   logBtn.disabled = false;
 
   const energy = (capacity * (target - current)) / 100;
-  const total = energy * rate;
+  const efficiency = selectedEfficiency();
+  const energyToBuy = energy / efficiency;
+  const total = energyToBuy * rate;
   const base = gstOn ? total / (1 + GST_RATE) : total;
   const gst = total - base;
-  const hours = energy / (chargerKw * CHARGING_EFFICIENCY);
+  const hours = energyToBuy / chargerKw;
   lastResult = { energy, total, rate, gstOn, chargerKw };
 
   animateNumber(energyEl, energy, formatEnergy);
+  animateNumber(energyBuyEl, energyToBuy, formatEnergy);
   animateNumber(totalEl, total, formatMoney);
   animateNumber(totalBreakdownEl, total, formatMoney);
   animateNumber(baseEl, base, formatMoney);
@@ -511,9 +563,13 @@ rateInput.addEventListener("input", () => {
   calculate();
 });
 gstToggle.addEventListener("change", calculate);
+customTypeInput.addEventListener("change", calculate);
+dcEfficiencyInput.addEventListener("change", () => updateEfficiency(dcEfficiencyInput, DC_EFFICIENCY_KEY));
+acEfficiencyInput.addEventListener("change", () => updateEfficiency(acEfficiencyInput, AC_EFFICIENCY_KEY));
 
 initTheme();
 initUser();
+initEfficiency();
 updateRateLabel();
 syncCustomCharger();
 calculate();
