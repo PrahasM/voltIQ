@@ -6,6 +6,7 @@ const AC_EFFICIENCY_KEY = "voltiq-eff-ac";
 const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
+const PREFS_PREFIX = "voltiq-prefs:";
 const MAX_LOG_ENTRIES = 500;
 
 const capacityInput = document.getElementById("capacity");
@@ -161,11 +162,7 @@ function validate(capacity, current, target, chargerKw) {
   return null;
 }
 
-function showError(error) {
-  numberInputs.forEach((el) => el.classList.toggle("invalid", el === error.field));
-  messageEl.textContent = error.text;
-  messageEl.hidden = false;
-  resultsEl.classList.add("dimmed");
+function resetOutputs() {
   outputEls.forEach((el) => {
     const running = animations.get(el);
     if (running) cancelAnimationFrame(running.frame);
@@ -174,6 +171,19 @@ function showError(error) {
   });
   batteryNowEl.style.width = "0%";
   batteryAddEl.style.width = "0%";
+}
+
+function showError(error) {
+  numberInputs.forEach((el) => el.classList.toggle("invalid", el === error.field));
+  messageEl.textContent = error.text;
+  messageEl.hidden = false;
+  resultsEl.classList.add("dimmed");
+  resetOutputs();
+}
+
+function showIdle() {
+  clearError();
+  resetOutputs();
 }
 
 function clearError() {
@@ -229,13 +239,68 @@ function saveLog(user, entries) {
   return storageSet(logKey(user), JSON.stringify(entries.slice(-MAX_LOG_ENTRIES)));
 }
 
-function setUser(user) {
+function prefsKey(user) {
+  return PREFS_PREFIX + user;
+}
+
+function savePrefs(user) {
+  const checked = chargerInputs.find((el) => el.checked);
+  return storageSet(
+    prefsKey(user),
+    JSON.stringify({
+      capacity: capacityInput.value,
+      target: targetInput.value,
+      rate: rateInput.value,
+      gstOn: gstToggle.checked,
+      charger: checked ? checked.value : null,
+      customKw: customKwInput.value,
+      customType: customTypeInput.value,
+    })
+  );
+}
+
+function loadPrefs(user) {
+  const raw = storageGet(prefsKey(user));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function applyPrefs(prefs) {
+  if (!prefs) return;
+  if (prefs.capacity) capacityInput.value = prefs.capacity;
+  if (prefs.target) targetInput.value = prefs.target;
+  if (prefs.rate) rateInput.value = prefs.rate;
+  if (typeof prefs.gstOn === "boolean") gstToggle.checked = prefs.gstOn;
+  const charger = chargerInputs.find((el) => el.value === prefs.charger);
+  if (charger) {
+    charger.checked = true;
+    if (charger.value === "custom") {
+      if (prefs.customKw) customKwInput.value = prefs.customKw;
+      if (prefs.customType === "ac" || prefs.customType === "dc") customTypeInput.value = prefs.customType;
+    }
+  }
+  updateRateLabel();
+  syncCustomCharger();
+}
+
+function setUser(user, { quickEntry = false } = {}) {
   currentUser = user;
   storageSet(USER_KEY, user);
   userLabelEl.textContent = user;
   userSetupEl.hidden = true;
   appEl.hidden = false;
   renderHistory();
+  if (quickEntry) {
+    applyPrefs(loadPrefs(user));
+    currentInput.value = "";
+    calculate();
+    currentInput.focus();
+  }
 }
 
 function clearUser() {
@@ -254,7 +319,7 @@ function clearUser() {
 function initUser() {
   const stored = storageGet(USER_KEY);
   if (stored) {
-    setUser(stored);
+    setUser(stored, { quickEntry: true });
   } else {
     userSetupEl.hidden = false;
     appEl.hidden = true;
@@ -511,6 +576,13 @@ function calculate() {
   updateHeroSub(rate, gstOn);
   gstRowEl.hidden = !gstOn;
 
+  if (currentInput.value.trim() === "") {
+    lastResult = null;
+    logBtn.disabled = true;
+    showIdle();
+    return;
+  }
+
   const error = validate(capacity, current, target, chargerKw);
   if (error) {
     lastResult = null;
@@ -520,6 +592,7 @@ function calculate() {
   }
   clearError();
   logBtn.disabled = false;
+  if (currentUser) savePrefs(currentUser);
 
   const energy = (capacity * (target - current)) / 100;
   const efficiency = selectedEfficiency();
