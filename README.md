@@ -7,7 +7,7 @@ need and what it will cost.
 ## What it does
 
 - **Inputs**: battery capacity in kWh (default 79), current battery % and target
-  battery % (default 100). All fields are independent and results update live as
+  battery % (default 85, the level most EVs recommend for daily charging). All fields are independent and results update live as
   you type.
 - **Energy to add**: `capacity × (target% − current%) / 100` kWh.
 - **Rate**: drag a slider to pick the charging rate, ₹5–₹40 / kWh in ₹0.50 steps
