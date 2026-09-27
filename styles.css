@@ -587,6 +587,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   animation: fade-in 0.3s var(--ease) both;
 }
 
+.breakdown-row[hidden] { display: none; }
+
 .breakdown-row:first-of-type { padding-top: 0.75rem; }
 
 .breakdown-total {
