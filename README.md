@@ -6,8 +6,8 @@ need and what it will cost.
 
 ## What it does
 
-- **Inputs**: battery capacity in kWh (default 79), current battery % and target
-  battery % (default 100). All fields are independent and results update live as
+- **Inputs**: battery capacity in kWh (default 79), current battery % (default 20)
+  and target battery % (default 100). All fields are independent and results update live as
   you type.
 - **Energy to add**: `capacity × (target% − current%) / 100` kWh.
 - **Rate**: drag a slider to pick the charging rate, ₹5–₹40 / kWh in ₹0.50 steps
@@ -37,11 +37,13 @@ need and what it will cost.
 - **Dark mode**: follows your system preference, with a toggle that remembers
   your choice.
 - **Validation**: friendly messages when capacity ≤ 0, percentages fall outside
-  0–100, or the target is not higher than the current charge.
+  0–100, the target is not higher than the current charge, or a Custom charger
+  power is missing or ≤ 0 kW.
 
 ## How to run
 
-No build step or server required — just open `index.html` in a browser.
+No build step, dependencies or server required — just open `index.html` in a
+browser (all data stays in the browser's `localStorage`).
 
 ```
 open index.html        # macOS
@@ -51,6 +53,10 @@ start index.html       # Windows
 
 ## Files
 
-- `index.html` – page structure
-- `styles.css` – styling
-- `script.js` – calculation and live-update logic
+- `index.html` – page structure (inputs, rate slider, GST toggle, charger chips,
+  results, History tab)
+- `styles.css` – styling, light/dark themes, responsive layout and animations
+- `script.js` – calculation pipeline (`calculate()`, `validate()`,
+  `selectedChargerKw()`), theme, user/history storage and live updates
+- `favicon.svg` – app icon
+- `README.md` – this documentation

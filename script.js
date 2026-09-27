@@ -1,4 +1,6 @@
-const GST_RATE = 0.18;
+// Calculation pipeline (runs on every input change):
+//   calculate() -> selectedChargerKw() -> validate() -> energy / cost / time -> render
+const GST_RATE = 0.18; // GST share applied when the "Include 18% GST" toggle is on
 const CHARGING_EFFICIENCY = 0.9; // rough allowance for losses and tapering
 const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
@@ -134,6 +136,9 @@ function pop(el) {
 
 /* ---------- Validation ---------- */
 
+// Returns { field, text } for the first failing rule, or null when all inputs are valid.
+// Rules: capacity > 0; current and target within 0–100; target > current;
+// custom charger power > 0 (only checked when the Custom chip is selected).
 function validate(capacity, current, target, chargerKw) {
   if (Number.isNaN(capacity) || capacity <= 0) {
     return { field: capacityInput, text: "Please enter a battery capacity greater than 0 kWh." };
@@ -426,11 +431,14 @@ clearBtn.addEventListener("click", clearHistory);
 
 /* ---------- Calculation ---------- */
 
+// True when the "Custom" chip is selected (reveals the manual kW input).
 function isCustomCharger() {
   const checked = chargerInputs.find((el) => el.checked);
   return Boolean(checked) && checked.value === "custom";
 }
 
+// Charger power in kW: the checked chip's value (3, 7, 22, 60, 120), or the
+// manual #custom-kw input when Custom is selected. NaN if empty/invalid.
 function selectedChargerKw() {
   if (isCustomCharger()) return parseFloat(customKwInput.value);
   const checked = chargerInputs.find((el) => el.checked);
@@ -451,6 +459,12 @@ function updateHeroSub(rate, gstOn) {
   heroSubEl.textContent = `at ${formatRate(rate)} · ${gstOn ? "includes 18% GST" : "no GST"}`;
 }
 
+// Reads all inputs, validates them and renders the results.
+//   energy (kWh) = capacity × (target − current) / 100
+//   total  (₹)   = energy × rate            (rate slider: ₹5–₹40, step ₹0.50)
+//   GST on : rate is GST-inclusive -> base = total / 1.18, gst = total − base
+//   GST off: base = total, gst = 0 and the GST row is hidden
+//   time (h)     = energy / (chargerKw × CHARGING_EFFICIENCY)
 function calculate() {
   const capacity = parseFloat(capacityInput.value);
   const current = parseFloat(currentInput.value);
@@ -474,8 +488,8 @@ function calculate() {
 
   const energy = (capacity * (target - current)) / 100;
   const total = energy * rate;
-  const base = gstOn ? total / (1 + GST_RATE) : total;
-  const gst = total - base;
+  const base = gstOn ? total / (1 + GST_RATE) : total; // back out GST from the inclusive total
+  const gst = total - base; // 0 when GST is off
   const hours = energy / (chargerKw * CHARGING_EFFICIENCY);
   lastResult = { energy, total, rate, gstOn, chargerKw };
 
