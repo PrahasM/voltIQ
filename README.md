@@ -31,6 +31,10 @@ need and what it will cost.
   short username. It is saved in the browser's `localStorage` on that device
   (phone, tablet or laptop), so the app remembers you next time. Tap
   **Switch user** to hand the device to someone else.
+- **Registered users list**: the "Who's charging?" screen lists every username
+  that already has history or saved settings on this device. Tap a name to
+  continue as that user, or tap **Delete** (after a confirmation prompt) to remove
+  that user's history and saved settings from the device.
 - **Log this charge**: after a calculation, one tap records the session
   (date, battery-side kWh added, cost, rate, GST on/off, charger kW).
 - **History tab**: totals for money spent, energy charged, number of sessions
