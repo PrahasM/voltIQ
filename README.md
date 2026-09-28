@@ -9,6 +9,10 @@ need and what it will cost.
 - **Inputs**: battery capacity in kWh (default 79), current battery % and target
   battery % (default 85, the level most EVs recommend for daily charging). All fields are independent and results update live as
   you type.
+- **Easy % inputs**: current battery % has large − / + steppers (step 1, clamped
+  to 0–100). Target % is a chip group — 80, 85, 90, 100 — plus **Custom**, which
+  reveals a numeric field for any other value. The chosen target is saved per user.
+  All tap targets are at least 48 px.
 - **Energy to add**: `capacity × (target% − current%) / 100` kWh reaches the battery.
 - **Headline result**: the biggest thing on screen reads "Enter 37 kWh" — the
   energy to buy rounded up to the nearest whole kWh, ready to type into the

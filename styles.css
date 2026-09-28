@@ -68,7 +68,8 @@ body {
 .user-bar { --d: 0; }
 .tabs { --d: 1; }
 .field:nth-of-type(1) { --d: 1; }
-.row .field { --d: 2; }
+.current-field { --d: 2; }
+.target-field { --d: 2; }
 .battery { --d: 3; }
 .rate-field { --d: 4; }
 .switch-field { --d: 5; }
@@ -170,7 +171,59 @@ h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; line-height: 1.1; }
   min-width: 0;
 }
 
-.row { display: flex; gap: 1rem; }
+.stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.stepper input[type="number"] {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.stepper input[type="number"]::-webkit-inner-spin-button,
+.stepper input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper-btn {
+  flex: none;
+  min-width: 56px;
+  min-height: 48px;
+  padding: 0 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.2s var(--ease), border-color 0.25s, background 0.25s, color 0.25s;
+}
+
+.stepper-btn:hover { border-color: var(--accent); }
+
+.stepper-btn:active {
+  transform: scale(0.94);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.stepper-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+}
 
 label, legend {
   font-size: 0.85rem;
@@ -184,6 +237,7 @@ label, legend {
 input[type="number"],
 input[type="text"],
 select {
+  min-height: 48px;
   font-size: 1.35rem;
   font-weight: 600;
   padding: 0.7rem 0.85rem;
@@ -407,6 +461,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .custom-charger[hidden] { display: none; }
 
+.target-chips { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
 .chip {
   position: relative;
   cursor: pointer;
@@ -423,6 +479,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   gap: 0.1rem;
   padding: 0.75rem 0.25rem;
   min-height: 56px;
+  min-width: 48px;
   justify-content: center;
   border: 1.5px solid var(--border);
   border-radius: 14px;
@@ -962,8 +1019,9 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 /* Responsive */
 @media (max-width: 440px) {
   .card { padding: 1.35rem; border-radius: 20px; }
-  .row { flex-direction: column; gap: 0; }
   .chips { grid-template-columns: repeat(2, 1fr); }
+  .target-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .target-chips .chip-custom { grid-column: 1 / -1; }
   h1 { font-size: 1.35rem; }
   .hero { padding: 1.25rem 0.75rem; }
   .user-form { flex-direction: column; }

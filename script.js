@@ -12,6 +12,10 @@ const MAX_LOG_ENTRIES = 500;
 const capacityInput = document.getElementById("capacity");
 const currentInput = document.getElementById("current");
 const targetInput = document.getElementById("target");
+const currentDecBtn = document.getElementById("current-dec");
+const currentIncBtn = document.getElementById("current-inc");
+const targetPresetInputs = Array.from(document.querySelectorAll('input[name="target-preset"]'));
+const customTargetEl = document.getElementById("custom-target");
 const chargerInputs = Array.from(document.querySelectorAll('input[name="charger"]'));
 const rateInput = document.getElementById("rate");
 const rateValueEl = document.getElementById("rate-value");
@@ -282,6 +286,7 @@ function applyPrefs(prefs) {
   if (!prefs) return;
   if (prefs.capacity) capacityInput.value = prefs.capacity;
   if (prefs.target) targetInput.value = prefs.target;
+  syncTargetPreset();
   if (prefs.rate) rateInput.value = prefs.rate;
   if (typeof prefs.gstOn === "boolean") gstToggle.checked = prefs.gstOn;
   const charger = chargerInputs.find((el) => el.value === prefs.charger);
@@ -643,6 +648,41 @@ function syncCustomCharger() {
   if (custom) customKwInput.focus();
 }
 
+function stepCurrent(delta) {
+  const min = parseFloat(currentInput.min);
+  const max = parseFloat(currentInput.max);
+  const value = parseFloat(currentInput.value);
+  const base = Number.isNaN(value) ? 0 : value;
+  currentInput.value = String(Math.min(max, Math.max(min, base + delta)));
+  calculate();
+}
+
+function isCustomTarget() {
+  const checked = targetPresetInputs.find((el) => el.checked);
+  return Boolean(checked) && checked.value === "custom";
+}
+
+function syncTargetPreset() {
+  const target = parseFloat(targetInput.value);
+  const preset = targetPresetInputs.find((el) => el.value !== "custom" && parseFloat(el.value) === target);
+  const selected = preset || targetPresetInputs.find((el) => el.value === "custom");
+  selected.checked = true;
+  customTargetEl.hidden = !isCustomTarget();
+}
+
+function onTargetPresetChange() {
+  const custom = isCustomTarget();
+  customTargetEl.hidden = !custom;
+  if (custom) {
+    targetInput.focus();
+    targetInput.select();
+  } else {
+    const checked = targetPresetInputs.find((el) => el.checked);
+    if (checked) targetInput.value = checked.value;
+  }
+  calculate();
+}
+
 function updateRateLabel() {
   rateValueEl.textContent = formatRate(parseFloat(rateInput.value));
 }
@@ -756,6 +796,9 @@ chargerInputs.forEach((el) =>
     calculate();
   })
 );
+currentDecBtn.addEventListener("click", () => stepCurrent(-1));
+currentIncBtn.addEventListener("click", () => stepCurrent(1));
+targetPresetInputs.forEach((el) => el.addEventListener("change", onTargetPresetChange));
 rateInput.addEventListener("input", () => {
   updateRateLabel();
   calculate();
@@ -770,4 +813,5 @@ initUser();
 initEfficiency();
 updateRateLabel();
 syncCustomCharger();
+syncTargetPreset();
 calculate();

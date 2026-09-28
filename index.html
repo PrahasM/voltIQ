@@ -57,16 +57,29 @@
         <input type="number" id="capacity" name="capacity" min="1" step="0.1" value="79" inputmode="decimal" />
       </div>
 
-      <div class="row">
-        <div class="field">
-          <label for="current">Battery now <span class="unit">%</span></label>
+      <div class="field current-field">
+        <label for="current">Battery now <span class="unit">%</span></label>
+        <div class="stepper">
+          <button type="button" id="current-dec" class="stepper-btn" aria-label="Decrease current %" aria-controls="current">−</button>
           <input type="number" id="current" name="current" min="0" max="100" step="1" placeholder="e.g. 20" inputmode="numeric" />
-        </div>
-        <div class="field">
-          <label for="target">Charge to <span class="unit">%</span></label>
-          <input type="number" id="target" name="target" min="0" max="100" step="1" value="85" inputmode="numeric" />
+          <button type="button" id="current-inc" class="stepper-btn" aria-label="Increase current %" aria-controls="current">+</button>
         </div>
       </div>
+
+      <fieldset class="field target-field">
+        <legend>Charge to <span class="unit">%</span></legend>
+        <div class="chips target-chips" role="radiogroup" aria-label="Charge to %">
+          <label class="chip" style="--i: 0"><input type="radio" name="target-preset" value="80" /><span><strong>80%</strong></span></label>
+          <label class="chip" style="--i: 1"><input type="radio" name="target-preset" value="85" checked /><span><strong>85%</strong></span></label>
+          <label class="chip" style="--i: 2"><input type="radio" name="target-preset" value="90" /><span><strong>90%</strong></span></label>
+          <label class="chip" style="--i: 3"><input type="radio" name="target-preset" value="100" /><span><strong>100%</strong></span></label>
+          <label class="chip chip-custom" style="--i: 4"><input type="radio" name="target-preset" value="custom" /><span><strong>Custom</strong></span></label>
+        </div>
+        <div id="custom-target" class="custom-charger" hidden>
+          <label for="target">Custom target <span class="unit">%</span></label>
+          <input type="number" id="target" name="target" min="0" max="100" step="1" value="85" inputmode="numeric" />
+        </div>
+      </fieldset>
 
       <div class="battery" aria-hidden="true">
         <div class="battery-body">
