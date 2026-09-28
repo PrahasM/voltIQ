@@ -114,8 +114,12 @@
 
     <section id="results" class="results" aria-live="polite">
       <div class="hero">
-        <span class="hero-label">You pay</span>
-        <span class="hero-value">₹<span id="total">—</span></span>
+        <span class="hero-label">On the charger app</span>
+        <div class="hero-enter">
+          <span class="hero-value">Enter <span id="enter-kwh">—</span> kWh</span>
+          <button type="button" id="copy-kwh" class="copy-btn" aria-label="Copy kWh to clipboard" disabled>Copy</button>
+        </div>
+        <span class="hero-meta">₹<span id="total">—</span> · <span id="time">—</span></span>
         <span class="hero-sub" id="hero-sub">at ₹25 / kWh · includes 18% GST</span>
       </div>
 
@@ -129,11 +133,6 @@
           <svg class="stat-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 12-14h-7l1-6z"/></svg>
           <span class="stat-label">Energy to buy</span>
           <span class="stat-value"><span id="energy-buy">—</span> <small>kWh</small></span>
-        </div>
-        <div class="stat">
-          <svg class="stat-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6" stroke-linecap="round"/></svg>
-          <span class="stat-label">Time to charge</span>
-          <span class="stat-value" id="time">—</span>
         </div>
       </div>
 
