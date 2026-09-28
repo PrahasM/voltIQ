@@ -42,6 +42,8 @@ const heroEl = document.querySelector(".hero");
 const userSetupEl = document.getElementById("user-setup");
 const userForm = document.getElementById("user-form");
 const usernameInput = document.getElementById("username");
+const userListWrapEl = document.getElementById("user-list-wrap");
+const userListEl = document.getElementById("user-list");
 const appEl = document.getElementById("app");
 const userLabelEl = document.getElementById("user-label");
 const switchUserBtn = document.getElementById("switch-user");
@@ -313,7 +315,71 @@ function clearUser() {
   appEl.hidden = true;
   userSetupEl.hidden = false;
   usernameInput.value = "";
+  renderUserList();
   usernameInput.focus();
+}
+
+function listUsers() {
+  const users = new Set();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      const prefix = [PREFS_PREFIX, LOG_PREFIX].find((p) => key.startsWith(p));
+      if (prefix) {
+        const user = key.slice(prefix.length);
+        if (user) users.add(user);
+      }
+    }
+  } catch {
+    return [];
+  }
+  return Array.from(users).sort((a, b) => a.localeCompare(b));
+}
+
+function renderUserList() {
+  const users = listUsers();
+  userListWrapEl.hidden = users.length === 0;
+  userListEl.replaceChildren(
+    ...users.map((user, i) => {
+      const li = document.createElement("li");
+      li.className = "user-item";
+      li.style.setProperty("--i", String(Math.min(i, 8)));
+
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "user-select";
+      select.dataset.action = "select";
+      select.dataset.user = user;
+      select.textContent = user;
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "btn btn-ghost btn-danger";
+      del.dataset.action = "delete";
+      del.dataset.user = user;
+      del.setAttribute("aria-label", `Delete ${user}`);
+      del.textContent = "Delete";
+
+      li.append(select, del);
+      return li;
+    })
+  );
+}
+
+function deleteUser(user) {
+  if (!window.confirm(`Delete all voltIQ data for ${user} on this device? This cannot be undone.`)) return;
+  try {
+    localStorage.removeItem(logKey(user));
+    localStorage.removeItem(prefsKey(user));
+  } catch {
+    /* ignore */
+  }
+  if (user === currentUser || user === storageGet(USER_KEY)) {
+    clearUser();
+  } else {
+    renderUserList();
+  }
 }
 
 function initUser() {
@@ -323,8 +389,22 @@ function initUser() {
   } else {
     userSetupEl.hidden = false;
     appEl.hidden = true;
+    renderUserList();
   }
 }
+
+userListEl.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action]");
+  if (!button || !userListEl.contains(button)) return;
+  const user = button.dataset.user;
+  if (!user) return;
+  if (button.dataset.action === "select") {
+    setUser(user, { quickEntry: true });
+    showTab("tab-calc");
+  } else if (button.dataset.action === "delete") {
+    deleteUser(user);
+  }
+});
 
 userForm.addEventListener("submit", (event) => {
   event.preventDefault();
