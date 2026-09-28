@@ -470,6 +470,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 .hero {
   position: relative;
   overflow: hidden;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -498,13 +499,51 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .hero-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.85; }
 
+.hero-enter {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.75rem;
+}
+
 .hero-value {
-  font-size: 2.8rem;
+  font-size: min(2.9rem, 12cqi);
   font-weight: 800;
   line-height: 1.1;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+
+.copy-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--accent-text) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-text) 14%, transparent);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.copy-btn:hover { background: color-mix(in srgb, var(--accent-text) 24%, transparent); }
+.copy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.copy-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-text) 45%, transparent); }
+
+.hero-meta {
+  margin-top: 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-meta span { white-space: nowrap; }
 
 .hero-sub { font-size: 0.8rem; opacity: 0.85; margin-top: 0.25rem; }
 
@@ -546,7 +585,6 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .stat-value small { font-size: 0.9rem; font-weight: 500; color: var(--muted); }
 
-#results .stat:last-child { grid-column: 1 / -1; }
 
 .pop { animation: pop 0.35s var(--ease); }
 
@@ -926,7 +964,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   .card { padding: 1.35rem; border-radius: 20px; }
   .row { flex-direction: column; gap: 0; }
   .chips { grid-template-columns: repeat(2, 1fr); }
-  .hero-value { font-size: 2.3rem; }
+  h1 { font-size: 1.35rem; }
+  .hero { padding: 1.25rem 0.75rem; }
   .user-form { flex-direction: column; }
   .history-item { flex-wrap: wrap; }
   .subtitle { display: none; }

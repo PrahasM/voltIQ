@@ -10,6 +10,10 @@ need and what it will cost.
   battery % (default 85, the level most EVs recommend for daily charging). All fields are independent and results update live as
   you type.
 - **Energy to add**: `capacity × (target% − current%) / 100` kWh reaches the battery.
+- **Headline result**: the biggest thing on screen reads "Enter 37 kWh" — the
+  energy to buy rounded up to the nearest whole kWh, ready to type into the
+  charger app. Cost and charging time sit below it in smaller text, and a
+  **Copy** button copies the number to the clipboard.
 - **Energy to buy**: `energy to add / charging efficiency` kWh is delivered by the
   charger, accounting for charging losses. This is the energy used to price the charge.
 - **Settings**: DC efficiency defaults to 92% and AC efficiency to 87%. Edit either

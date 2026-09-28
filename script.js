@@ -29,6 +29,8 @@ const energyEl = document.getElementById("energy");
 const energyBuyEl = document.getElementById("energy-buy");
 const timeEl = document.getElementById("time");
 const totalEl = document.getElementById("total");
+const enterKwhEl = document.getElementById("enter-kwh");
+const copyKwhBtn = document.getElementById("copy-kwh");
 const totalBreakdownEl = document.getElementById("total-breakdown");
 const baseEl = document.getElementById("base");
 const gstEl = document.getElementById("gst");
@@ -61,7 +63,7 @@ const exportBtn = document.getElementById("export-btn");
 const clearBtn = document.getElementById("clear-btn");
 
 const numberInputs = [capacityInput, currentInput, targetInput, customKwInput];
-const outputEls = [energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
+const outputEls = [enterKwhEl, energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- Theme ---------- */
@@ -95,6 +97,10 @@ function formatRate(value) {
 
 function formatEnergy(value) {
   return value.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function kwhToEnter(energyToBuy) {
+  return Math.ceil(Math.round(energyToBuy * 1000) / 1000);
 }
 
 function formatDuration(hours) {
@@ -658,7 +664,7 @@ function calculate() {
 
   if (currentInput.value.trim() === "") {
     lastResult = null;
-    logBtn.disabled = true;
+    logBtn.disabled = copyKwhBtn.disabled = true;
     showIdle();
     return;
   }
@@ -666,12 +672,12 @@ function calculate() {
   const error = validate(capacity, current, target, chargerKw);
   if (error) {
     lastResult = null;
-    logBtn.disabled = true;
+    logBtn.disabled = copyKwhBtn.disabled = true;
     showError(error);
     return;
   }
   clearError();
-  logBtn.disabled = false;
+  logBtn.disabled = copyKwhBtn.disabled = false;
   if (currentUser) savePrefs(currentUser);
 
   const energy = (capacity * (target - current)) / 100;
@@ -681,7 +687,10 @@ function calculate() {
   const base = gstOn ? total / (1 + GST_RATE) : total;
   const gst = total - base;
   const hours = energyToBuy / chargerKw;
-  lastResult = { energy, total, rate, gstOn, chargerKw };
+  const enterKwh = kwhToEnter(energyToBuy);
+  lastResult = { energy, total, rate, gstOn, chargerKw, enterKwh };
+
+  animateNumber(enterKwhEl, enterKwh, (v) => Math.round(v).toLocaleString("en-IN"));
 
   animateNumber(energyEl, energy, formatEnergy);
   animateNumber(energyBuyEl, energyToBuy, formatEnergy);
@@ -694,12 +703,48 @@ function calculate() {
   batteryNowEl.style.width = `${current}%`;
   batteryAddEl.style.width = `${target - current}%`;
 
-  pop(totalEl.parentElement);
-  pop(timeEl);
+  pop(enterKwhEl.parentElement);
+  pop(timeEl.parentElement);
   heroEl.classList.remove("glow");
   void heroEl.offsetWidth;
   heroEl.classList.add("glow");
 }
+
+/* ---------- Copy kWh ---------- */
+
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    if (ok) resolve();
+    else reject(new Error("copy failed"));
+  });
+}
+
+function flashCopyLabel(text) {
+  copyKwhBtn.textContent = text;
+  clearTimeout(flashCopyLabel.timer);
+  flashCopyLabel.timer = setTimeout(() => {
+    copyKwhBtn.textContent = "Copy";
+  }, 1600);
+}
+
+copyKwhBtn.addEventListener("click", () => {
+  if (!lastResult) return;
+  copyText(String(lastResult.enterKwh))
+    .then(() => flashCopyLabel("Copied"))
+    .catch(() => flashCopyLabel("Copy failed"));
+});
 
 numberInputs.forEach((el) => {
   el.addEventListener("input", calculate);
