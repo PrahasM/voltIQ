@@ -17,13 +17,13 @@ need and what it will cost.
   - **By ₹ amount**: enter how much you want to spend (**Amount to spend ₹**).
     Shows the final % you'll reach, the kWh bought (`amount / rate`), the energy
     delivered to the battery (`kWh bought × efficiency`), the GST breakdown and
-    the charging time (`kWh bought / charger power`).
+    the charging time (`kWh bought / effective power`).
   - **By time**: enter how long you'll charge (**Charging time**, in minutes).
     Shows the final % you'll reach, the kWh delivered to the battery
-    (`charger power × hours × efficiency`), the energy drawn from the charger and
+    (`effective power × hours × efficiency`), the energy drawn from the charger and
     the cost (`energy drawn × rate`) with GST breakdown.
-  - All modes apply the charging efficiency, the 18% GST toggle and the charger
-    power. In ₹ and time modes the final % is capped at 100%; if your budget or
+  - All modes apply the charging efficiency, the 18% GST toggle and the
+    effective charging power. In ₹ and time modes the final % is capped at 100%; if your budget or
     time would overfill the battery, the energy, cost and time are trimmed to
     what's needed to reach 100% and a note tells you so.
 - **Easy % inputs**: current battery % has large − / + steppers (step 1, clamped
@@ -54,7 +54,14 @@ need and what it will cost.
   - **Custom**: type any charger power in kW and choose AC or DC.
 
   AC presets use the AC efficiency and DC presets use the DC efficiency.
-  Estimated charging time is `energy to buy / charger power`.
+- **Effective charging power**: your car limits how fast it can charge. In
+  **Settings → Your car** set **Car max AC power** (default 11 kW) and **Car max
+  DC power** (default 150 kW); they are saved on this device under
+  `voltiq-car-ac` / `voltiq-car-dc`. The effective power is
+  `min(charger power, car limit for the charger's AC/DC type)`, and every
+  charging time (and the energy drawn in **By time** mode) uses it. When the car
+  is the bottleneck a note under the time reads e.g. "Your car accepts max 11 kW AC".
+  Estimated charging time is `energy to buy / effective power`.
 - **Your name, your history** (no account, no server): on first open you pick a
   short username. It is saved in the browser's `localStorage` on that device
   (phone, tablet or laptop), so the app remembers you next time. Tap

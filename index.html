@@ -158,6 +158,7 @@
           <span class="hero-value">Reach <span id="final-pct">—</span>%</span>
         </div>
         <span class="hero-meta">₹<span id="total">—</span> · <span id="time">—</span></span>
+        <span id="power-note" class="hero-note" hidden></span>
         <span class="hero-sub" id="hero-sub">at ₹25 / kWh · includes 18% GST</span>
       </div>
 
@@ -227,6 +228,16 @@
       <div class="field">
         <label for="eff-ac">AC charging efficiency <span class="unit">%</span></label>
         <input type="number" id="eff-ac" min="50" max="100" step="any" value="87" inputmode="decimal" />
+      </div>
+      <h3 class="settings-heading">Your car</h3>
+      <p class="settings-intro">The most power your car can accept. Charging time uses the lower of the charger's power and these limits.</p>
+      <div class="field">
+        <label for="car-ac">Car max AC power <span class="unit">kW</span></label>
+        <input type="number" id="car-ac" min="1" max="1000" step="any" value="11" inputmode="decimal" />
+      </div>
+      <div class="field">
+        <label for="car-dc">Car max DC power <span class="unit">kW</span></label>
+        <input type="number" id="car-dc" min="1" max="1000" step="any" value="150" inputmode="decimal" />
       </div>
       <p id="settings-message" class="message" role="alert" hidden></p>
     </section>

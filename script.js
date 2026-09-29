@@ -3,6 +3,10 @@ const DEFAULT_DC_EFFICIENCY = 0.92;
 const DEFAULT_AC_EFFICIENCY = 0.87;
 const DC_EFFICIENCY_KEY = "voltiq-eff-dc";
 const AC_EFFICIENCY_KEY = "voltiq-eff-ac";
+const DEFAULT_CAR_AC_KW = 11;
+const DEFAULT_CAR_DC_KW = 150;
+const CAR_AC_KEY = "voltiq-car-ac";
+const CAR_DC_KEY = "voltiq-car-dc";
 const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
@@ -31,6 +35,9 @@ const customKwInput = document.getElementById("custom-kw");
 const customTypeInput = document.getElementById("custom-type");
 const dcEfficiencyInput = document.getElementById("eff-dc");
 const acEfficiencyInput = document.getElementById("eff-ac");
+const carAcInput = document.getElementById("car-ac");
+const carDcInput = document.getElementById("car-dc");
+const powerNoteEl = document.getElementById("power-note");
 const settingsMessageEl = document.getElementById("settings-message");
 const heroSubEl = document.getElementById("hero-sub");
 const gstRowEl = document.getElementById("gst-row");
@@ -118,6 +125,10 @@ function formatEnergy(value) {
 
 function kwhToEnter(energyToBuy) {
   return Math.ceil(Math.round(energyToBuy * 1000) / 1000);
+}
+
+function formatKw(value) {
+  return value.toLocaleString("en-IN", { maximumFractionDigits: 1 });
 }
 
 function formatPercent(value) {
@@ -211,6 +222,7 @@ function resetOutputs() {
   batteryNowEl.style.width = "0%";
   batteryAddEl.style.width = "0%";
   capNoteEl.hidden = true;
+  powerNoteEl.hidden = true;
 }
 
 function showError(error) {
@@ -654,10 +666,51 @@ function updateEfficiency(input, key) {
   }
 
   input.classList.remove("invalid");
-  settingsMessageEl.hidden = [dcEfficiencyInput, acEfficiencyInput].every((el) => !el.classList.contains("invalid"));
+  syncSettingsMessage();
   if (key === DC_EFFICIENCY_KEY) dcEfficiency = percent / 100;
   else acEfficiency = percent / 100;
   storageSet(key, String(percent));
+  calculate();
+}
+
+function syncSettingsMessage() {
+  settingsMessageEl.hidden = settingsInputs().every((el) => !el.classList.contains("invalid"));
+}
+
+function settingsInputs() {
+  return [dcEfficiencyInput, acEfficiencyInput, carAcInput, carDcInput];
+}
+
+let carAcKw = DEFAULT_CAR_AC_KW;
+let carDcKw = DEFAULT_CAR_DC_KW;
+
+function loadCarLimit(key, fallback) {
+  const stored = storageGet(key);
+  const kw = Number(stored);
+  return stored !== null && Number.isFinite(kw) && kw > 0 && kw <= 1000 ? kw : fallback;
+}
+
+function initCarProfile() {
+  carAcKw = loadCarLimit(CAR_AC_KEY, DEFAULT_CAR_AC_KW);
+  carDcKw = loadCarLimit(CAR_DC_KEY, DEFAULT_CAR_DC_KW);
+  carAcInput.value = String(carAcKw);
+  carDcInput.value = String(carDcKw);
+}
+
+function updateCarLimit(input, key) {
+  const kw = Number(input.value);
+  if (!input.value || !input.validity.valid || !Number.isFinite(kw) || kw <= 0 || kw > 1000) {
+    input.classList.add("invalid");
+    settingsMessageEl.textContent = "Car max power must be between 1 and 1000 kW.";
+    settingsMessageEl.hidden = false;
+    return;
+  }
+
+  input.classList.remove("invalid");
+  syncSettingsMessage();
+  if (key === CAR_AC_KEY) carAcKw = kw;
+  else carDcKw = kw;
+  storageSet(key, String(kw));
   calculate();
 }
 
@@ -676,6 +729,24 @@ function selectedChargerType() {
   const checked = chargerInputs.find((el) => el.checked);
   const type = checked?.value === "custom" ? customTypeInput.value : checked?.dataset.type;
   return type === "ac" ? "ac" : "dc";
+}
+
+function carLimitKw(type) {
+  return type === "ac" ? carAcKw : carDcKw;
+}
+
+function effectivePower() {
+  return Math.min(selectedChargerKw(), carLimitKw(selectedChargerType()));
+}
+
+function updatePowerNote(chargerKw) {
+  const type = selectedChargerType();
+  const limit = carLimitKw(type);
+  const limited = limit < chargerKw;
+  powerNoteEl.hidden = !limited;
+  if (limited) {
+    powerNoteEl.textContent = `Your car accepts max ${formatKw(limit)} kW ${type.toUpperCase()}`;
+  }
 }
 
 function selectedEfficiency() {
@@ -798,21 +869,23 @@ function calculate() {
   if (currentUser) savePrefs(currentUser);
 
   const efficiency = selectedEfficiency();
+  const power = effectivePower();
+  updatePowerNote(chargerKw);
   let energy;
   let energyToBuy;
   let hours;
   if (mode === "amount") {
     energyToBuy = budget / rate;
     energy = energyToBuy * efficiency;
-    hours = energyToBuy / chargerKw;
+    hours = energyToBuy / power;
   } else if (mode === "time") {
     hours = minutes / 60;
-    energyToBuy = chargerKw * hours;
+    energyToBuy = power * hours;
     energy = energyToBuy * efficiency;
   } else {
     energy = (capacity * (target - current)) / 100;
     energyToBuy = energy / efficiency;
-    hours = energyToBuy / chargerKw;
+    hours = energyToBuy / power;
   }
 
   const room = (capacity * (100 - current)) / 100;
@@ -820,7 +893,7 @@ function calculate() {
   if (capped) {
     energy = room;
     energyToBuy = energy / efficiency;
-    hours = energyToBuy / chargerKw;
+    hours = energyToBuy / power;
   }
 
   const finalPct = mode === "target" ? target : Math.min(100, current + (energy / capacity) * 100);
@@ -920,10 +993,13 @@ gstToggle.addEventListener("change", calculate);
 customTypeInput.addEventListener("change", calculate);
 dcEfficiencyInput.addEventListener("change", () => updateEfficiency(dcEfficiencyInput, DC_EFFICIENCY_KEY));
 acEfficiencyInput.addEventListener("change", () => updateEfficiency(acEfficiencyInput, AC_EFFICIENCY_KEY));
+carAcInput.addEventListener("change", () => updateCarLimit(carAcInput, CAR_AC_KEY));
+carDcInput.addEventListener("change", () => updateCarLimit(carDcInput, CAR_DC_KEY));
 
 initTheme();
 initUser();
 initEfficiency();
+initCarProfile();
 updateRateLabel();
 syncCustomCharger();
 syncTargetPreset();

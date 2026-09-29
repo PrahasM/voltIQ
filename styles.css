@@ -614,6 +614,17 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .hero-meta span { white-space: nowrap; }
 
+.hero-note {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-text) 16%, transparent);
+}
+
+.hero-note[hidden] { display: none; }
+
 .hero-sub { font-size: 0.8rem; opacity: 0.85; margin-top: 0.25rem; }
 
 .stats {
@@ -941,6 +952,12 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 .panel { animation: fade-in 0.3s var(--ease); }
 
 .settings-intro { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
+
+.settings-heading {
+  margin: 1.5rem 0 0.35rem;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
 
 /* Toast */
 .toast {
