@@ -625,6 +625,15 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .hero-note[hidden] { display: none; }
 
+.hero-phases {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-phases[hidden] { display: none; }
+
 .hero-sub { font-size: 0.8rem; opacity: 0.85; margin-top: 0.25rem; }
 
 .stats {
@@ -675,6 +684,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 }
 
 .cap-note[hidden] { display: none; }
+
+.taper-hint { font-weight: 600; }
 
 
 .pop { animation: pop 0.35s var(--ease); }

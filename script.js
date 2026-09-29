@@ -7,6 +7,9 @@ const DEFAULT_CAR_AC_KW = 11;
 const DEFAULT_CAR_DC_KW = 150;
 const CAR_AC_KEY = "voltiq-car-ac";
 const CAR_DC_KEY = "voltiq-car-dc";
+const DEFAULT_DC_TAPER = 0.4;
+const DC_TAPER_KEY = "voltiq-taper-dc";
+const TAPER_SOC = 80;
 const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
@@ -38,6 +41,9 @@ const acEfficiencyInput = document.getElementById("eff-ac");
 const carAcInput = document.getElementById("car-ac");
 const carDcInput = document.getElementById("car-dc");
 const powerNoteEl = document.getElementById("power-note");
+const dcTaperInput = document.getElementById("taper-dc");
+const phasesEl = document.getElementById("phases");
+const taperHintEl = document.getElementById("taper-hint");
 const settingsMessageEl = document.getElementById("settings-message");
 const heroSubEl = document.getElementById("hero-sub");
 const gstRowEl = document.getElementById("gst-row");
@@ -223,6 +229,8 @@ function resetOutputs() {
   batteryAddEl.style.width = "0%";
   capNoteEl.hidden = true;
   powerNoteEl.hidden = true;
+  phasesEl.hidden = true;
+  taperHintEl.hidden = true;
 }
 
 function showError(error) {
@@ -678,7 +686,73 @@ function syncSettingsMessage() {
 }
 
 function settingsInputs() {
-  return [dcEfficiencyInput, acEfficiencyInput, carAcInput, carDcInput];
+  return [dcEfficiencyInput, acEfficiencyInput, carAcInput, carDcInput, dcTaperInput];
+}
+
+let dcTaper = DEFAULT_DC_TAPER;
+
+function loadTaper() {
+  const stored = storageGet(DC_TAPER_KEY);
+  const percent = Number(stored);
+  return stored !== null && Number.isFinite(percent) && percent >= 10 && percent <= 100
+    ? percent / 100
+    : DEFAULT_DC_TAPER;
+}
+
+function initTaper() {
+  dcTaper = loadTaper();
+  dcTaperInput.value = String(Number((dcTaper * 100).toFixed(10)));
+}
+
+function updateTaper() {
+  const percent = Number(dcTaperInput.value);
+  if (!dcTaperInput.value || !dcTaperInput.validity.valid || !Number.isFinite(percent) || percent < 10 || percent > 100) {
+    dcTaperInput.classList.add("invalid");
+    settingsMessageEl.textContent = "DC taper power must be between 10% and 100%.";
+    settingsMessageEl.hidden = false;
+    return;
+  }
+
+  dcTaperInput.classList.remove("invalid");
+  syncSettingsMessage();
+  dcTaper = percent / 100;
+  storageSet(DC_TAPER_KEY, String(percent));
+  calculate();
+}
+
+// Splits a charge into a full-power phase up to 80% and, on DC only, a tapered phase above 80%.
+function chargingPhases(current, target, capacity, powerBelow80, isDC, efficiency = 1) {
+  const split = isDC ? Math.min(Math.max(current, TAPER_SOC), target) : target;
+  const phases = [];
+  if (split > current) phases.push({ from: current, to: split, power: powerBelow80, tapered: false });
+  if (target > split) phases.push({ from: split, to: target, power: powerBelow80 * dcTaper, tapered: true });
+  return phases.map((phase) => {
+    const energyToBuy = (capacity * (phase.to - phase.from)) / 100 / efficiency;
+    const hours = energyToBuy / phase.power;
+    return { ...phase, energyToBuy, hours, minutes: hours * 60 };
+  });
+}
+
+// Battery-side kWh added in a given time, following the same phases as chargingPhases().
+function energyForHours(current, capacity, powerBelow80, isDC, efficiency, hours) {
+  if (!isDC) return powerBelow80 * hours * efficiency;
+  const taperPower = powerBelow80 * dcTaper;
+  if (current >= TAPER_SOC) return taperPower * hours * efficiency;
+  const energyTo80 = (capacity * (TAPER_SOC - current)) / 100;
+  const hoursTo80 = energyTo80 / efficiency / powerBelow80;
+  if (hours <= hoursTo80) return powerBelow80 * hours * efficiency;
+  return energyTo80 + taperPower * (hours - hoursTo80) * efficiency;
+}
+
+function renderPhases(phases) {
+  const split = phases.length === 2;
+  phasesEl.hidden = !split;
+  taperHintEl.hidden = !split;
+  if (!split) return;
+  phasesEl.textContent = phases
+    .map((p) => `${formatPercent(p.from)}→${formatPercent(p.to)}%: ${formatDuration(p.hours)}`)
+    .join(", ");
+  taperHintEl.textContent = `Stopping at ${TAPER_SOC}% saves ${formatDuration(phases[1].hours)}`;
 }
 
 let carAcKw = DEFAULT_CAR_AC_KW;
@@ -870,6 +944,7 @@ function calculate() {
 
   const efficiency = selectedEfficiency();
   const power = effectivePower();
+  const isDC = selectedChargerType() === "dc";
   updatePowerNote(chargerKw);
   let energy;
   let energyToBuy;
@@ -877,15 +952,13 @@ function calculate() {
   if (mode === "amount") {
     energyToBuy = budget / rate;
     energy = energyToBuy * efficiency;
-    hours = energyToBuy / power;
   } else if (mode === "time") {
     hours = minutes / 60;
-    energyToBuy = power * hours;
-    energy = energyToBuy * efficiency;
+    energy = energyForHours(current, capacity, power, isDC, efficiency, hours);
+    energyToBuy = energy / efficiency;
   } else {
     energy = (capacity * (target - current)) / 100;
     energyToBuy = energy / efficiency;
-    hours = energyToBuy / power;
   }
 
   const room = (capacity * (100 - current)) / 100;
@@ -893,10 +966,11 @@ function calculate() {
   if (capped) {
     energy = room;
     energyToBuy = energy / efficiency;
-    hours = energyToBuy / power;
   }
 
   const finalPct = mode === "target" ? target : Math.min(100, current + (energy / capacity) * 100);
+  const phases = chargingPhases(current, finalPct, capacity, power, isDC, efficiency);
+  if (mode !== "time" || capped) hours = phases.reduce((sum, p) => sum + p.hours, 0);
   const total = mode === "amount" && !capped ? budget : energyToBuy * rate;
   const base = gstOn ? total / (1 + GST_RATE) : total;
   const gst = total - base;
@@ -916,6 +990,7 @@ function calculate() {
   animateNumber(baseEl, base, formatMoney);
   animateNumber(gstEl, gst, formatMoney);
   timeEl.textContent = `~${formatDuration(hours)}`;
+  renderPhases(phases);
 
   capNoteEl.hidden = !capped;
   if (capped) {
@@ -995,11 +1070,13 @@ dcEfficiencyInput.addEventListener("change", () => updateEfficiency(dcEfficiency
 acEfficiencyInput.addEventListener("change", () => updateEfficiency(acEfficiencyInput, AC_EFFICIENCY_KEY));
 carAcInput.addEventListener("change", () => updateCarLimit(carAcInput, CAR_AC_KEY));
 carDcInput.addEventListener("change", () => updateCarLimit(carDcInput, CAR_DC_KEY));
+dcTaperInput.addEventListener("change", updateTaper);
 
 initTheme();
 initUser();
 initEfficiency();
 initCarProfile();
+initTaper();
 updateRateLabel();
 syncCustomCharger();
 syncTargetPreset();

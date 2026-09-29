@@ -17,10 +17,10 @@ need and what it will cost.
   - **By ₹ amount**: enter how much you want to spend (**Amount to spend ₹**).
     Shows the final % you'll reach, the kWh bought (`amount / rate`), the energy
     delivered to the battery (`kWh bought × efficiency`), the GST breakdown and
-    the charging time (`kWh bought / effective power`).
+    the charging time (`kWh bought / effective power`, taper-aware).
   - **By time**: enter how long you'll charge (**Charging time**, in minutes).
     Shows the final % you'll reach, the kWh delivered to the battery
-    (`effective power × hours × efficiency`), the energy drawn from the charger and
+    (`effective power × hours × efficiency`, slowed by the DC taper above 80%), the energy drawn from the charger and
     the cost (`energy drawn × rate`) with GST breakdown.
   - All modes apply the charging efficiency, the 18% GST toggle and the
     effective charging power. In ₹ and time modes the final % is capped at 100%; if your budget or
@@ -61,7 +61,16 @@ need and what it will cost.
   `min(charger power, car limit for the charger's AC/DC type)`, and every
   charging time (and the energy drawn in **By time** mode) uses it. When the car
   is the bottleneck a note under the time reads e.g. "Your car accepts max 11 kW AC".
-  Estimated charging time is `energy to buy / effective power`.
+- **Taper-aware charging time**: DC charging slows down above 80%. Below 80%
+  the charge runs at the full effective power; above 80% on DC it runs at
+  **DC taper power above 80%** (Settings, default 40%, saved as
+  `voltiq-taper-dc`) of the effective power. AC charging never tapers.
+  - When a DC charge crosses 80% the results split the time into phases, e.g.
+    "42→80%: 28 min, 80→85%: 10 min", and a hint reads
+    "Stopping at 80% saves 10 min" (the time spent above 80%).
+  - On AC, or when the charge stays at or below 80%, a single time is shown.
+  - **By time** mode uses the same phases to work out how far the battery gets.
+  Estimated charging time is the sum of `phase energy to buy / phase power`.
 - **Your name, your history** (no account, no server): on first open you pick a
   short username. It is saved in the browser's `localStorage` on that device
   (phone, tablet or laptop), so the app remembers you next time. Tap
