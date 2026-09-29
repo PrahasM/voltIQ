@@ -40,13 +40,31 @@ need and what it will cost.
 - **Settings**: DC efficiency defaults to 92% and AC efficiency to 87%. Edit either
   value from 50–100% in the Settings tab; changes recalculate results and are saved
   on this device in `localStorage`.
+- **Operator presets**: in **Settings → Charging operators** add, edit or
+  delete the networks you use. Each preset stores the operator name, ₹/kWh,
+  whether that rate already includes GST, an optional session fee (₹) and an
+  optional idle fee (₹/min). Presets are saved **per user** under
+  `voltiq-operators:<username>` (matching the per-user prefs), as compact JSON
+  (`id, n = name, r = ₹/kWh, g = GST included 1/0, s = session fee, f = idle fee`).
+  - Pick one from the **Operator** dropdown on the Calculator: its rate is applied
+    to the rate slider and the GST switch is set from its "GST included" flag.
+    The last-used operator is saved in the user's prefs and selected again next time.
+  - Moving the rate slider away from the operator's rate switches back to
+    **Manual rate**.
+  - The session and idle fees are shown under the result and used for the
+    effective ₹/kWh of logged charges.
 - **Rate**: drag a slider to pick the charging rate, ₹5–₹40 / kWh in ₹0.50 steps
-  (default ₹25). The chosen rate is shown live and echoed under the total.
+  (default ₹25; the range widens if an operator's rate is outside it). The rate
+  label and the line under the total always state the GST treatment:
+  "incl. GST", "+18% GST" or "no GST".
 - **GST toggle** ("Include 18% GST", on by default):
-  - ON – the rate is treated as GST-inclusive: total = energy to buy × rate,
+  - ON – the rate is GST-inclusive ("incl. GST"): total = energy to buy × rate,
     base (excl. GST) = total / 1.18, GST = total − base.
-  - OFF – total = energy to buy × rate with no GST; base = total, GST = 0 and the GST
-    row is hidden from the breakdown.
+  - OFF with **Manual rate** – no GST ("no GST"): total = energy to buy × rate,
+    base = total, GST = 0 and the GST row is hidden from the breakdown.
+  - OFF with an **operator** selected (the switch reads "Rate includes 18% GST")
+    – GST is added on top ("+18% GST"): total = energy to buy × rate × 1.18,
+    base = total / 1.18, GST = total − base.
 - **Charger power**: tap one of the Indian-station presets. Every chip shows
   whether it is AC or DC:
   - **AC**: 3.3 kW (Home), 7.2 kW (Wallbox), 11 kW (3-phase), 22 kW (Fast AC)

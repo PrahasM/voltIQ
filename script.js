@@ -14,6 +14,7 @@ const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
 const PREFS_PREFIX = "voltiq-prefs:";
+const OPERATORS_PREFIX = "voltiq-operators:";
 const MAX_LOG_ENTRIES = 500;
 
 const capacityInput = document.getElementById("capacity");
@@ -33,6 +34,22 @@ const chargerInputs = Array.from(document.querySelectorAll('input[name="charger"
 const rateInput = document.getElementById("rate");
 const rateValueEl = document.getElementById("rate-value");
 const gstToggle = document.getElementById("gst-toggle");
+const gstLabelEl = document.getElementById("gst-label");
+const operatorSelect = document.getElementById("operator");
+const rateMinEl = document.getElementById("rate-min");
+const rateMaxEl = document.getElementById("rate-max");
+const operatorListEl = document.getElementById("operator-list");
+const operatorEmptyEl = document.getElementById("operator-empty");
+const operatorForm = document.getElementById("operator-form");
+const opIdInput = document.getElementById("op-id");
+const opNameInput = document.getElementById("op-name");
+const opRateInput = document.getElementById("op-rate");
+const opGstInput = document.getElementById("op-gst");
+const opSessionInput = document.getElementById("op-session");
+const opIdleInput = document.getElementById("op-idle");
+const opSaveBtn = document.getElementById("op-save");
+const opCancelBtn = document.getElementById("op-cancel");
+const operatorMessageEl = document.getElementById("operator-message");
 const customChargerEl = document.getElementById("custom-charger");
 const customKwInput = document.getElementById("custom-kw");
 const customTypeInput = document.getElementById("custom-type");
@@ -122,7 +139,7 @@ function formatMoney(value) {
 }
 
 function formatRate(value) {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 1 })} / kWh`;
+  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / kWh`;
 }
 
 function formatEnergy(value) {
@@ -283,7 +300,7 @@ function logKey(user) {
   return LOG_PREFIX + user;
 }
 
-// Entries are stored compactly: t = timestamp (ms), e = kWh, c = ₹ total, r = ₹/kWh, g = GST on (1/0), k = charger kW
+// Entries are stored compactly: t = timestamp (ms), e = kWh, c = ₹ total, r = ₹/kWh, g = GST (1 = incl., 2 = added on top, 0 = none), k = charger kW
 function loadLog(user) {
   const raw = storageGet(logKey(user));
   if (!raw) return [];
@@ -316,6 +333,7 @@ function savePrefs(user) {
       rate: rateInput.value,
       gstOn: gstToggle.checked,
       charger: checked ? checked.value : null,
+      operator: operatorSelect.value,
       customKw: customKwInput.value,
       customType: customTypeInput.value,
     })
@@ -353,6 +371,12 @@ function applyPrefs(prefs) {
       if (prefs.customType === "ac" || prefs.customType === "dc") customTypeInput.value = prefs.customType;
     }
   }
+  renderOperatorSelect();
+  const operator = findOperator(prefs.operator);
+  if (operator) {
+    operatorSelect.value = operator.id;
+    applyOperator(operator);
+  }
   updateRateLabel();
   syncCustomCharger();
 }
@@ -363,6 +387,10 @@ function setUser(user, { quickEntry = false } = {}) {
   userLabelEl.textContent = user;
   userSetupEl.hidden = true;
   appEl.hidden = false;
+  operators = loadOperators(user);
+  renderOperatorSelect();
+  renderOperatorList();
+  resetOperatorForm();
   renderHistory();
   if (quickEntry) {
     applyPrefs(loadPrefs(user));
@@ -392,7 +420,7 @@ function listUsers() {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
-      const prefix = [PREFS_PREFIX, LOG_PREFIX].find((p) => key.startsWith(p));
+      const prefix = [PREFS_PREFIX, LOG_PREFIX, OPERATORS_PREFIX].find((p) => key.startsWith(p));
       if (prefix) {
         const user = key.slice(prefix.length);
         if (user) users.add(user);
@@ -439,6 +467,7 @@ function deleteUser(user) {
   try {
     localStorage.removeItem(logKey(user));
     localStorage.removeItem(prefsKey(user));
+    localStorage.removeItem(operatorsKey(user));
   } catch {
     /* ignore */
   }
@@ -487,6 +516,223 @@ userForm.addEventListener("submit", (event) => {
 });
 
 switchUserBtn.addEventListener("click", clearUser);
+
+/* ---------- Operators ---------- */
+
+let operators = [];
+
+function operatorsKey(user) {
+  return OPERATORS_PREFIX + user;
+}
+
+// Operators are stored per user: id, n = name, r = ₹/kWh, g = rate includes GST (1/0), s = session fee ₹, f = idle fee ₹/min
+function loadOperators(user) {
+  const raw = storageGet(operatorsKey(user));
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((o) => o && o.id && o.n && o.r > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOperators(user, list) {
+  return storageSet(operatorsKey(user), JSON.stringify(list));
+}
+
+function findOperator(id) {
+  return operators.find((o) => o.id === id) || null;
+}
+
+function selectedOperator() {
+  return findOperator(operatorSelect.value);
+}
+
+function formatOperatorFees(op) {
+  const fees = [];
+  if (op.s > 0) fees.push(`₹${formatMoney(op.s)} session`);
+  if (op.f > 0) fees.push(`₹${formatMoney(op.f)}/min idle`);
+  return fees;
+}
+
+function renderOperatorSelect() {
+  const selected = operatorSelect.value;
+  const manual = document.createElement("option");
+  manual.value = "";
+  manual.textContent = "Manual rate";
+  operatorSelect.replaceChildren(
+    manual,
+    ...operators.map((op) => {
+      const option = document.createElement("option");
+      option.value = op.id;
+      option.textContent = `${op.n} · ${formatRate(op.r)} ${op.g ? "incl. GST" : "+18% GST"}`;
+      return option;
+    })
+  );
+  operatorSelect.value = findOperator(selected) ? selected : "";
+}
+
+function renderOperatorList() {
+  operatorEmptyEl.hidden = operators.length > 0;
+  operatorListEl.replaceChildren(
+    ...operators.map((op, i) => {
+      const li = document.createElement("li");
+      li.className = "history-item";
+      li.style.setProperty("--i", String(Math.min(i, 8)));
+
+      const main = document.createElement("div");
+      main.className = "history-main";
+      const name = document.createElement("strong");
+      name.textContent = op.n;
+      const meta = document.createElement("span");
+      meta.className = "history-meta";
+      meta.textContent = [`${formatRate(op.r)} ${op.g ? "incl. GST" : "+18% GST"}`, ...formatOperatorFees(op)].join(" · ");
+      main.append(name, meta);
+
+      const side = document.createElement("div");
+      side.className = "history-side";
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "btn btn-ghost";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => editOperator(op.id));
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "icon-btn";
+      del.setAttribute("aria-label", `Delete ${op.n}`);
+      del.textContent = "×";
+      del.addEventListener("click", () => deleteOperator(op.id));
+      side.append(edit, del);
+
+      li.append(main, side);
+      return li;
+    })
+  );
+}
+
+function resetOperatorForm() {
+  operatorForm.reset();
+  opIdInput.value = "";
+  opGstInput.checked = true;
+  opSaveBtn.textContent = "Add operator";
+  opCancelBtn.hidden = true;
+  operatorMessageEl.hidden = true;
+  [opNameInput, opRateInput, opSessionInput, opIdleInput].forEach((el) => el.classList.remove("invalid"));
+}
+
+function editOperator(id) {
+  const op = findOperator(id);
+  if (!op) return;
+  resetOperatorForm();
+  opIdInput.value = op.id;
+  opNameInput.value = op.n;
+  opRateInput.value = String(op.r);
+  opGstInput.checked = Boolean(op.g);
+  opSessionInput.value = op.s ? String(op.s) : "";
+  opIdleInput.value = op.f ? String(op.f) : "";
+  opSaveBtn.textContent = "Save changes";
+  opCancelBtn.hidden = false;
+  opNameInput.focus();
+}
+
+function operatorFormError() {
+  const name = opNameInput.value.trim();
+  const rate = Number(opRateInput.value);
+  const session = opSessionInput.value.trim() === "" ? 0 : Number(opSessionInput.value);
+  const idle = opIdleInput.value.trim() === "" ? 0 : Number(opIdleInput.value);
+  if (!name) return { field: opNameInput, text: "Please enter an operator name." };
+  if (!opRateInput.value || !Number.isFinite(rate) || rate <= 0 || rate > 200) {
+    return { field: opRateInput, text: "Rate must be between ₹0.01 and ₹200 / kWh." };
+  }
+  if (!Number.isFinite(session) || session < 0) return { field: opSessionInput, text: "Session fee can't be negative." };
+  if (!Number.isFinite(idle) || idle < 0) return { field: opIdleInput, text: "Idle fee can't be negative." };
+  return null;
+}
+
+function submitOperator(event) {
+  event.preventDefault();
+  if (!currentUser) return;
+  const fields = [opNameInput, opRateInput, opSessionInput, opIdleInput];
+  const error = operatorFormError();
+  fields.forEach((el) => el.classList.toggle("invalid", Boolean(error) && el === error.field));
+  if (error) {
+    operatorMessageEl.textContent = error.text;
+    operatorMessageEl.hidden = false;
+    error.field.focus();
+    return;
+  }
+
+  const op = {
+    id: opIdInput.value || Date.now().toString(36),
+    n: opNameInput.value.trim().slice(0, 32),
+    r: Number(opRateInput.value),
+    g: opGstInput.checked ? 1 : 0,
+    s: Number(opSessionInput.value) || 0,
+    f: Number(opIdleInput.value) || 0,
+  };
+  const index = operators.findIndex((o) => o.id === op.id);
+  const next = index >= 0 ? operators.map((o) => (o.id === op.id ? op : o)) : [...operators, op];
+  if (!saveOperators(currentUser, next)) {
+    operatorMessageEl.textContent = "Couldn't save — storage is unavailable on this device.";
+    operatorMessageEl.hidden = false;
+    return;
+  }
+  operators = next;
+  renderOperatorSelect();
+  renderOperatorList();
+  resetOperatorForm();
+  if (operatorSelect.value === op.id) onOperatorChange();
+}
+
+function deleteOperator(id) {
+  const op = findOperator(id);
+  if (!op || !currentUser) return;
+  if (!window.confirm(`Delete operator ${op.n}?`)) return;
+  operators = operators.filter((o) => o.id !== id);
+  saveOperators(currentUser, operators);
+  if (opIdInput.value === id) resetOperatorForm();
+  renderOperatorSelect();
+  renderOperatorList();
+  calculate();
+  savePrefs(currentUser);
+}
+
+function syncRateBounds(rate) {
+  rateInput.min = String(Math.min(5, Math.floor(rate)));
+  rateInput.max = String(Math.max(40, Math.ceil(rate)));
+  rateInput.step = Number.isInteger(rate * 2) ? "0.5" : "0.01";
+  rateMinEl.textContent = `₹${rateInput.min}`;
+  rateMaxEl.textContent = `₹${rateInput.max}`;
+}
+
+function applyOperator(op) {
+  syncRateBounds(op.r);
+  rateInput.value = String(op.r);
+  gstToggle.checked = Boolean(op.g);
+}
+
+function onOperatorChange() {
+  const op = selectedOperator();
+  if (op) applyOperator(op);
+  updateRateLabel();
+  calculate();
+  if (currentUser) savePrefs(currentUser);
+}
+
+function onRateInput() {
+  const op = selectedOperator();
+  if (op && parseFloat(rateInput.value) !== op.r) {
+    operatorSelect.value = "";
+    rateInput.step = "0.5";
+  }
+  updateRateLabel();
+  calculate();
+}
+
+operatorSelect.addEventListener("change", onOperatorChange);
+operatorForm.addEventListener("submit", submitOperator);
+opCancelBtn.addEventListener("click", resetOperatorForm);
 
 /* ---------- Tabs ---------- */
 
@@ -554,7 +800,7 @@ function renderHistory() {
         cost.textContent = `₹${formatMoney(entry.c)}`;
         const meta = document.createElement("span");
         meta.className = "history-meta";
-        meta.textContent = `${formatEnergy(entry.e)} kWh · ${formatRate(entry.r)}${entry.g ? " · GST" : ""} · ${entry.k} kW`;
+        meta.textContent = `${formatEnergy(entry.e)} kWh · ${formatRate(entry.r)}${entry.g === 2 ? " · +GST" : entry.g ? " · GST" : ""} · ${entry.k} kW`;
         main.append(cost, meta);
 
         const side = document.createElement("div");
@@ -593,7 +839,7 @@ function logCharge() {
     e: Math.round(lastResult.energy * 100) / 100,
     c: Math.round(lastResult.total * 100) / 100,
     r: lastResult.rate,
-    g: lastResult.gstOn ? 1 : 0,
+    g: lastResult.gstOn === "added" ? 2 : lastResult.gstOn === "incl" ? 1 : 0,
     k: lastResult.chargerKw,
   });
   if (!saveLog(currentUser, entries)) {
@@ -615,7 +861,7 @@ function exportCsv() {
   if (!currentUser) return;
   const rows = [["date", "energy_kwh", "cost_inr", "rate_inr_per_kwh", "gst_included", "charger_kw"]];
   loadLog(currentUser).forEach((e) => {
-    rows.push([new Date(e.t).toISOString(), e.e, e.c, e.r, e.g ? "yes" : "no", e.k]);
+    rows.push([new Date(e.t).toISOString(), e.e, e.c, e.r, e.g === 2 ? "added" : e.g ? "yes" : "no", e.k]);
   });
   const csv = rows.map((r) => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -901,12 +1147,25 @@ function onModeChange() {
   if (currentUser) savePrefs(currentUser);
 }
 
-function updateRateLabel() {
-  rateValueEl.textContent = formatRate(parseFloat(rateInput.value));
+// "incl" = rate already includes GST, "added" = operator adds 18% on top, "none" = no GST
+function gstMode() {
+  if (gstToggle.checked) return "incl";
+  return selectedOperator() ? "added" : "none";
 }
 
-function updateHeroSub(rate, gstOn) {
-  heroSubEl.textContent = `at ${formatRate(rate)} · ${gstOn ? "includes 18% GST" : "no GST"}`;
+const GST_LABELS = { incl: "incl. GST", added: "+18% GST", none: "no GST" };
+
+function updateRateLabel() {
+  const op = selectedOperator();
+  rateValueEl.textContent = `${formatRate(parseFloat(rateInput.value))} · ${GST_LABELS[gstMode()]}`;
+  gstLabelEl.textContent = op ? "Rate includes 18% GST" : "Include 18% GST";
+}
+
+function updateHeroSub(rate, mode) {
+  const op = selectedOperator();
+  const parts = [`at ${formatRate(rate)} ${GST_LABELS[mode]}`];
+  if (op) parts.push(op.n, ...formatOperatorFees(op).map((fee) => `+ ${fee}`));
+  heroSubEl.textContent = parts.join(" · ");
 }
 
 function calculate() {
@@ -918,10 +1177,12 @@ function calculate() {
   const minutes = parseFloat(timeInput.value);
   const chargerKw = selectedChargerKw();
   const rate = parseFloat(rateInput.value);
-  const gstOn = gstToggle.checked;
+  const gstOn = gstMode();
+  const grossRate = gstOn === "added" ? rate * (1 + GST_RATE) : rate;
 
+  updateRateLabel();
   updateHeroSub(rate, gstOn);
-  gstRowEl.hidden = !gstOn;
+  gstRowEl.hidden = gstOn === "none";
 
   const modeInput = mode === "amount" ? budgetInput : mode === "time" ? timeInput : null;
   if (currentInput.value.trim() === "" || (modeInput && modeInput.value.trim() === "")) {
@@ -950,7 +1211,7 @@ function calculate() {
   let energyToBuy;
   let hours;
   if (mode === "amount") {
-    energyToBuy = budget / rate;
+    energyToBuy = budget / grossRate;
     energy = energyToBuy * efficiency;
   } else if (mode === "time") {
     hours = minutes / 60;
@@ -971,8 +1232,8 @@ function calculate() {
   const finalPct = mode === "target" ? target : Math.min(100, current + (energy / capacity) * 100);
   const phases = chargingPhases(current, finalPct, capacity, power, isDC, efficiency);
   if (mode !== "time" || capped) hours = phases.reduce((sum, p) => sum + p.hours, 0);
-  const total = mode === "amount" && !capped ? budget : energyToBuy * rate;
-  const base = gstOn ? total / (1 + GST_RATE) : total;
+  const total = mode === "amount" && !capped ? budget : energyToBuy * grossRate;
+  const base = gstOn === "none" ? total : total / (1 + GST_RATE);
   const gst = total - base;
   const enterKwh = kwhToEnter(energyToBuy);
   lastResult = { mode, energy, total, rate, gstOn, chargerKw, enterKwh, finalPct };
@@ -1060,11 +1321,11 @@ currentDecBtn.addEventListener("click", () => stepCurrent(-1));
 currentIncBtn.addEventListener("click", () => stepCurrent(1));
 targetPresetInputs.forEach((el) => el.addEventListener("change", onTargetPresetChange));
 modeInputs.forEach((el) => el.addEventListener("change", onModeChange));
-rateInput.addEventListener("input", () => {
+rateInput.addEventListener("input", onRateInput);
+gstToggle.addEventListener("change", () => {
   updateRateLabel();
   calculate();
 });
-gstToggle.addEventListener("change", calculate);
 customTypeInput.addEventListener("change", calculate);
 dcEfficiencyInput.addEventListener("change", () => updateEfficiency(dcEfficiencyInput, DC_EFFICIENCY_KEY));
 acEfficiencyInput.addEventListener("change", () => updateEfficiency(acEfficiencyInput, AC_EFFICIENCY_KEY));
