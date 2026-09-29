@@ -52,6 +52,15 @@
 
     <section id="panel-calc" class="panel" role="tabpanel" aria-labelledby="tab-calc">
     <form id="calc-form" novalidate>
+      <fieldset class="field mode-field">
+        <legend>Calculate by</legend>
+        <div class="chips mode-chips" role="radiogroup" aria-label="Calculation mode">
+          <label class="chip" style="--i: 0"><input type="radio" name="mode" value="target" checked /><span><strong>By target %</strong><small>Charge to a level</small></span></label>
+          <label class="chip" style="--i: 1"><input type="radio" name="mode" value="amount" /><span><strong>By ₹ amount</strong><small>Set a budget</small></span></label>
+          <label class="chip" style="--i: 2"><input type="radio" name="mode" value="time" /><span><strong>By time</strong><small>Set minutes</small></span></label>
+        </div>
+      </fieldset>
+
       <div class="field">
         <label for="capacity">Battery capacity <span class="unit">kWh</span></label>
         <input type="number" id="capacity" name="capacity" min="1" step="0.1" value="79" inputmode="decimal" />
@@ -66,7 +75,7 @@
         </div>
       </div>
 
-      <fieldset class="field target-field">
+      <fieldset id="target-field" class="field target-field">
         <legend>Charge to <span class="unit">%</span></legend>
         <div class="chips target-chips" role="radiogroup" aria-label="Charge to %">
           <label class="chip" style="--i: 0"><input type="radio" name="target-preset" value="80" /><span><strong>80%</strong></span></label>
@@ -80,6 +89,16 @@
           <input type="number" id="target" name="target" min="0" max="100" step="1" value="85" inputmode="numeric" />
         </div>
       </fieldset>
+
+      <div id="budget-field" class="field mode-input-field" hidden>
+        <label for="budget">Amount to spend <span class="unit">₹</span></label>
+        <input type="number" id="budget" name="budget" min="0.01" step="0.01" placeholder="e.g. 500" inputmode="decimal" />
+      </div>
+
+      <div id="time-field" class="field mode-input-field" hidden>
+        <label for="time-input">Charging time <span class="unit">minutes</span></label>
+        <input type="number" id="time-input" name="time" min="0.01" step="any" placeholder="e.g. 30" inputmode="decimal" />
+      </div>
 
       <div class="battery" aria-hidden="true">
         <div class="battery-body">
@@ -127,10 +146,13 @@
 
     <section id="results" class="results" aria-live="polite">
       <div class="hero">
-        <span class="hero-label">On the charger app</span>
-        <div class="hero-enter">
+        <span class="hero-label" id="hero-label">On the charger app</span>
+        <div id="hero-enter" class="hero-enter">
           <span class="hero-value">Enter <span id="enter-kwh">—</span> kWh</span>
           <button type="button" id="copy-kwh" class="copy-btn" aria-label="Copy kWh to clipboard" disabled>Copy</button>
+        </div>
+        <div id="hero-final" class="hero-enter" hidden>
+          <span class="hero-value">Reach <span id="final-pct">—</span>%</span>
         </div>
         <span class="hero-meta">₹<span id="total">—</span> · <span id="time">—</span></span>
         <span class="hero-sub" id="hero-sub">at ₹25 / kWh · includes 18% GST</span>
@@ -139,15 +161,17 @@
       <div class="stats">
         <div class="stat">
           <svg class="stat-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M20 10h2v4h-2z"/><rect x="4.5" y="9.5" width="9" height="5" rx="1" class="fill"/></svg>
-          <span class="stat-label">Energy to add</span>
+          <span class="stat-label" id="energy-label">Energy to add</span>
           <span class="stat-value"><span id="energy">—</span> <small>kWh</small></span>
         </div>
         <div class="stat">
           <svg class="stat-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 12-14h-7l1-6z"/></svg>
-          <span class="stat-label">Energy to buy</span>
+          <span class="stat-label" id="energy-buy-label">Energy to buy</span>
           <span class="stat-value"><span id="energy-buy">—</span> <small>kWh</small></span>
         </div>
       </div>
+
+      <p id="cap-note" class="cap-note" role="status" hidden></p>
 
       <details class="breakdown">
         <summary>GST breakdown</summary>

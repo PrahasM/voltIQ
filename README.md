@@ -9,6 +9,23 @@ need and what it will cost.
 - **Inputs**: battery capacity in kWh (default 79), current battery % and target
   battery % (default 85, the level most EVs recommend for daily charging). All fields are independent and results update live as
   you type.
+- **Three calculation modes** — pick one with the **Calculate by** chips at the
+  top of the calculator (the choice is saved per user):
+  - **By target %** (default): enter the level you want to charge to and get the
+    "Enter X kWh" headline, energy to add, energy to buy, cost with GST breakdown
+    and charging time.
+  - **By ₹ amount**: enter how much you want to spend (**Amount to spend ₹**).
+    Shows the final % you'll reach, the kWh bought (`amount / rate`), the energy
+    delivered to the battery (`kWh bought × efficiency`), the GST breakdown and
+    the charging time (`kWh bought / charger power`).
+  - **By time**: enter how long you'll charge (**Charging time**, in minutes).
+    Shows the final % you'll reach, the kWh delivered to the battery
+    (`charger power × hours × efficiency`), the energy drawn from the charger and
+    the cost (`energy drawn × rate`) with GST breakdown.
+  - All modes apply the charging efficiency, the 18% GST toggle and the charger
+    power. In ₹ and time modes the final % is capped at 100%; if your budget or
+    time would overfill the battery, the energy, cost and time are trimmed to
+    what's needed to reach 100% and a note tells you so.
 - **Easy % inputs**: current battery % has large − / + steppers (step 1, clamped
   to 0–100). Target % is a chip group — 80, 85, 90, 100 — plus **Custom**, which
   reveals a numeric field for any other value. The chosen target is saved per user.
@@ -55,7 +72,9 @@ need and what it will cost.
 - **Dark mode**: follows your system preference, with a toggle that remembers
   your choice.
 - **Validation**: friendly messages when capacity ≤ 0, percentages fall outside
-  0–100, or the target is not higher than the current charge.
+  0–100, the target is not higher than the current charge (target mode), the
+  amount or time is not greater than 0 (₹ / time modes), or the battery is
+  already full (₹ / time modes).
 
 ## How to run
 
