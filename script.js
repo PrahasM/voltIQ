@@ -16,6 +16,12 @@ const currentDecBtn = document.getElementById("current-dec");
 const currentIncBtn = document.getElementById("current-inc");
 const targetPresetInputs = Array.from(document.querySelectorAll('input[name="target-preset"]'));
 const customTargetEl = document.getElementById("custom-target");
+const modeInputs = Array.from(document.querySelectorAll('input[name="mode"]'));
+const targetFieldEl = document.getElementById("target-field");
+const budgetFieldEl = document.getElementById("budget-field");
+const budgetInput = document.getElementById("budget");
+const timeFieldEl = document.getElementById("time-field");
+const timeInput = document.getElementById("time-input");
 const chargerInputs = Array.from(document.querySelectorAll('input[name="charger"]'));
 const rateInput = document.getElementById("rate");
 const rateValueEl = document.getElementById("rate-value");
@@ -34,6 +40,13 @@ const energyBuyEl = document.getElementById("energy-buy");
 const timeEl = document.getElementById("time");
 const totalEl = document.getElementById("total");
 const enterKwhEl = document.getElementById("enter-kwh");
+const heroLabelEl = document.getElementById("hero-label");
+const heroEnterEl = document.getElementById("hero-enter");
+const heroFinalEl = document.getElementById("hero-final");
+const finalPctEl = document.getElementById("final-pct");
+const energyLabelEl = document.getElementById("energy-label");
+const energyBuyLabelEl = document.getElementById("energy-buy-label");
+const capNoteEl = document.getElementById("cap-note");
 const copyKwhBtn = document.getElementById("copy-kwh");
 const totalBreakdownEl = document.getElementById("total-breakdown");
 const baseEl = document.getElementById("base");
@@ -66,8 +79,8 @@ const historyListEl = document.getElementById("history-list");
 const exportBtn = document.getElementById("export-btn");
 const clearBtn = document.getElementById("clear-btn");
 
-const numberInputs = [capacityInput, currentInput, targetInput, customKwInput];
-const outputEls = [enterKwhEl, energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
+const numberInputs = [capacityInput, currentInput, targetInput, budgetInput, timeInput, customKwInput];
+const outputEls = [enterKwhEl, finalPctEl, energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- Theme ---------- */
@@ -105,6 +118,10 @@ function formatEnergy(value) {
 
 function kwhToEnter(energyToBuy) {
   return Math.ceil(Math.round(energyToBuy * 1000) / 1000);
+}
+
+function formatPercent(value) {
+  return value.toLocaleString("en-IN", { maximumFractionDigits: 1 });
 }
 
 function formatDuration(hours) {
@@ -155,18 +172,28 @@ function pop(el) {
 
 /* ---------- Validation ---------- */
 
-function validate(capacity, current, target, chargerKw) {
+function validate(mode, { capacity, current, target, budget, minutes, chargerKw }) {
   if (Number.isNaN(capacity) || capacity <= 0) {
     return { field: capacityInput, text: "Please enter a battery capacity greater than 0 kWh." };
   }
   if (Number.isNaN(current) || current < 0 || current > 100) {
     return { field: currentInput, text: "Battery now must be between 0 and 100%." };
   }
-  if (Number.isNaN(target) || target < 0 || target > 100) {
-    return { field: targetInput, text: "Charge to must be between 0 and 100%." };
+  if (mode === "target") {
+    if (Number.isNaN(target) || target < 0 || target > 100) {
+      return { field: targetInput, text: "Charge to must be between 0 and 100%." };
+    }
+    if (target <= current) {
+      return { field: targetInput, text: "Charge to must be higher than your current battery level." };
+    }
+  } else if (current >= 100) {
+    return { field: currentInput, text: "Your battery is already full." };
   }
-  if (target <= current) {
-    return { field: targetInput, text: "Charge to must be higher than your current battery level." };
+  if (mode === "amount" && (Number.isNaN(budget) || budget <= 0)) {
+    return { field: budgetInput, text: "Please enter an amount greater than ₹0." };
+  }
+  if (mode === "time" && (Number.isNaN(minutes) || minutes <= 0)) {
+    return { field: timeInput, text: "Please enter a charging time greater than 0 minutes." };
   }
   if (isCustomCharger() && (Number.isNaN(chargerKw) || chargerKw <= 0)) {
     return { field: customKwInput, text: "Please enter a charger power greater than 0 kW." };
@@ -183,6 +210,7 @@ function resetOutputs() {
   });
   batteryNowEl.style.width = "0%";
   batteryAddEl.style.width = "0%";
+  capNoteEl.hidden = true;
 }
 
 function showError(error) {
@@ -260,8 +288,11 @@ function savePrefs(user) {
   return storageSet(
     prefsKey(user),
     JSON.stringify({
+      mode: selectedMode(),
       capacity: capacityInput.value,
       target: targetInput.value,
+      budget: budgetInput.value,
+      time: timeInput.value,
       rate: rateInput.value,
       gstOn: gstToggle.checked,
       charger: checked ? checked.value : null,
@@ -284,9 +315,14 @@ function loadPrefs(user) {
 
 function applyPrefs(prefs) {
   if (!prefs) return;
+  const mode = modeInputs.find((el) => el.value === prefs.mode);
+  if (mode) mode.checked = true;
   if (prefs.capacity) capacityInput.value = prefs.capacity;
   if (prefs.target) targetInput.value = prefs.target;
+  if (typeof prefs.budget === "string") budgetInput.value = prefs.budget;
+  if (typeof prefs.time === "string") timeInput.value = prefs.time;
   syncTargetPreset();
+  syncMode();
   if (prefs.rate) rateInput.value = prefs.rate;
   if (typeof prefs.gstOn === "boolean") gstToggle.checked = prefs.gstOn;
   const charger = chargerInputs.find((el) => el.value === prefs.charger);
@@ -683,6 +719,39 @@ function onTargetPresetChange() {
   calculate();
 }
 
+const MODE_LABELS = {
+  target: { hero: "On the charger app", energy: "Energy to add", energyBuy: "Energy to buy" },
+  amount: { hero: "Your budget gets you to", energy: "Energy to battery", energyBuy: "Energy bought" },
+  time: { hero: "In that time you'll reach", energy: "Energy delivered", energyBuy: "Energy drawn" },
+};
+
+function selectedMode() {
+  const checked = modeInputs.find((el) => el.checked);
+  return checked && MODE_LABELS[checked.value] ? checked.value : "target";
+}
+
+function syncMode() {
+  const mode = selectedMode();
+  const labels = MODE_LABELS[mode];
+  targetFieldEl.hidden = mode !== "target";
+  budgetFieldEl.hidden = mode !== "amount";
+  timeFieldEl.hidden = mode !== "time";
+  heroEnterEl.hidden = mode !== "target";
+  heroFinalEl.hidden = mode === "target";
+  heroLabelEl.textContent = labels.hero;
+  energyLabelEl.textContent = labels.energy;
+  energyBuyLabelEl.textContent = labels.energyBuy;
+}
+
+function onModeChange() {
+  syncMode();
+  const mode = selectedMode();
+  const input = mode === "amount" ? budgetInput : mode === "time" ? timeInput : null;
+  if (input && input.value.trim() === "") input.focus();
+  calculate();
+  if (currentUser) savePrefs(currentUser);
+}
+
 function updateRateLabel() {
   rateValueEl.textContent = formatRate(parseFloat(rateInput.value));
 }
@@ -692,9 +761,12 @@ function updateHeroSub(rate, gstOn) {
 }
 
 function calculate() {
+  const mode = selectedMode();
   const capacity = parseFloat(capacityInput.value);
   const current = parseFloat(currentInput.value);
   const target = parseFloat(targetInput.value);
+  const budget = parseFloat(budgetInput.value);
+  const minutes = parseFloat(timeInput.value);
   const chargerKw = selectedChargerKw();
   const rate = parseFloat(rateInput.value);
   const gstOn = gstToggle.checked;
@@ -702,14 +774,15 @@ function calculate() {
   updateHeroSub(rate, gstOn);
   gstRowEl.hidden = !gstOn;
 
-  if (currentInput.value.trim() === "") {
+  const modeInput = mode === "amount" ? budgetInput : mode === "time" ? timeInput : null;
+  if (currentInput.value.trim() === "" || (modeInput && modeInput.value.trim() === "")) {
     lastResult = null;
     logBtn.disabled = copyKwhBtn.disabled = true;
     showIdle();
     return;
   }
 
-  const error = validate(capacity, current, target, chargerKw);
+  const error = validate(mode, { capacity, current, target, budget, minutes, chargerKw });
   if (error) {
     lastResult = null;
     logBtn.disabled = copyKwhBtn.disabled = true;
@@ -720,17 +793,44 @@ function calculate() {
   logBtn.disabled = copyKwhBtn.disabled = false;
   if (currentUser) savePrefs(currentUser);
 
-  const energy = (capacity * (target - current)) / 100;
   const efficiency = selectedEfficiency();
-  const energyToBuy = energy / efficiency;
-  const total = energyToBuy * rate;
+  let energy;
+  let energyToBuy;
+  let hours;
+  if (mode === "amount") {
+    energyToBuy = budget / rate;
+    energy = energyToBuy * efficiency;
+    hours = energyToBuy / chargerKw;
+  } else if (mode === "time") {
+    hours = minutes / 60;
+    energyToBuy = chargerKw * hours;
+    energy = energyToBuy * efficiency;
+  } else {
+    energy = (capacity * (target - current)) / 100;
+    energyToBuy = energy / efficiency;
+    hours = energyToBuy / chargerKw;
+  }
+
+  const room = (capacity * (100 - current)) / 100;
+  const capped = mode !== "target" && energy > room;
+  if (capped) {
+    energy = room;
+    energyToBuy = energy / efficiency;
+    hours = energyToBuy / chargerKw;
+  }
+
+  const finalPct = mode === "target" ? target : Math.min(100, current + (energy / capacity) * 100);
+  const total = mode === "amount" && !capped ? budget : energyToBuy * rate;
   const base = gstOn ? total / (1 + GST_RATE) : total;
   const gst = total - base;
-  const hours = energyToBuy / chargerKw;
   const enterKwh = kwhToEnter(energyToBuy);
-  lastResult = { energy, total, rate, gstOn, chargerKw, enterKwh };
+  lastResult = { mode, energy, total, rate, gstOn, chargerKw, enterKwh, finalPct };
 
-  animateNumber(enterKwhEl, enterKwh, (v) => Math.round(v).toLocaleString("en-IN"));
+  if (mode === "target") {
+    animateNumber(enterKwhEl, enterKwh, (v) => Math.round(v).toLocaleString("en-IN"));
+  } else {
+    animateNumber(finalPctEl, finalPct, formatPercent);
+  }
 
   animateNumber(energyEl, energy, formatEnergy);
   animateNumber(energyBuyEl, energyToBuy, formatEnergy);
@@ -740,10 +840,18 @@ function calculate() {
   animateNumber(gstEl, gst, formatMoney);
   timeEl.textContent = `~${formatDuration(hours)}`;
 
-  batteryNowEl.style.width = `${current}%`;
-  batteryAddEl.style.width = `${target - current}%`;
+  capNoteEl.hidden = !capped;
+  if (capped) {
+    capNoteEl.textContent =
+      mode === "amount"
+        ? `Battery fills to 100% — only ₹${formatMoney(total)} of your ₹${formatMoney(budget)} is needed.`
+        : `Battery fills to 100% after ~${formatDuration(hours)} of charging.`;
+  }
 
-  pop(enterKwhEl.parentElement);
+  batteryNowEl.style.width = `${current}%`;
+  batteryAddEl.style.width = `${finalPct - current}%`;
+
+  pop((mode === "target" ? enterKwhEl : finalPctEl).parentElement);
   pop(timeEl.parentElement);
   heroEl.classList.remove("glow");
   void heroEl.offsetWidth;
@@ -799,6 +907,7 @@ chargerInputs.forEach((el) =>
 currentDecBtn.addEventListener("click", () => stepCurrent(-1));
 currentIncBtn.addEventListener("click", () => stepCurrent(1));
 targetPresetInputs.forEach((el) => el.addEventListener("change", onTargetPresetChange));
+modeInputs.forEach((el) => el.addEventListener("change", onModeChange));
 rateInput.addEventListener("input", () => {
   updateRateLabel();
   calculate();
@@ -814,4 +923,5 @@ initEfficiency();
 updateRateLabel();
 syncCustomCharger();
 syncTargetPreset();
+syncMode();
 calculate();
