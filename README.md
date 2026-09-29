@@ -97,14 +97,39 @@ need and what it will cost.
   that already has history or saved settings on this device. Tap a name to
   continue as that user, or tap **Delete** (after a confirmation prompt) to remove
   that user's history and saved settings from the device.
-- **Log this charge**: after a calculation, one tap records the session
-  (date, battery-side kWh added, cost, rate, GST on/off, charger kW).
-- **History tab**: totals for money spent, energy charged, number of sessions
-  and average ₹/kWh, plus a list of every logged charge with per-entry delete,
-  **Export CSV** and **Clear history**.
+- **Log a charge** (post-charge logging): **Log this charge** on the Calculator
+  (or **+ Add a charge** on the History tab) opens a form where you enter what
+  the charger or receipt says: date & time, operator, charger type (AC/DC) and
+  kW, start %, end %, **kWh billed**, **amount paid**, rate, optional idle
+  minutes and optional odometer. A live preview shows what will be stored:
+  - **Real efficiency** = `(end% − start%) × battery capacity ÷ kWh billed`
+    (capacity is taken from the Calculator).
+  - **Effective ₹/kWh** = `(amount paid + session fee + idle fee × idle minutes) ÷ kWh billed`,
+    using the selected operator's fees.
+- **Learning your real efficiency**: once 3 or more logged charges of the same
+  type (AC or DC) have a plausible real efficiency (50–100%), voltIQ averages
+  them and offers to use the learned value instead of the manual DC / AC
+  efficiency setting (a prompt after the log that crosses the threshold, and a
+  **Use learned DC/AC efficiency** switch in Settings). Your choice is saved in
+  your per-user prefs (`learnDc` / `learnAc`).
+- **History tab**: totals for money spent (amount paid + fees), energy charged,
+  number of sessions and average ₹/kWh, plus a list of every logged charge
+  (kWh billed, start→end %, charger, operator, real efficiency, effective ₹/kWh,
+  odometer) with per-entry delete, **Export CSV** and **Clear history**.
+  - Log entries are compact JSON:
+    `t` date, `e` battery kWh added, `c` ₹ paid, `r` ₹/kWh, `g` GST
+    (1 incl. / 2 added / 0 none), `k` charger kW, `b` kWh billed, `s` start %,
+    `f` end %, `y` ac/dc, `o`/`oi` operator name/id, `d` odometer km,
+    `m` idle minutes, `fe` fees ₹, `x` real efficiency, `q` effective ₹/kWh.
+    Entries logged by older versions (`t, e, c, r, g, k` only) still display,
+    count in the totals and export.
+  - The CSV has the columns `date, energy_kwh, cost_inr, rate_inr_per_kwh,
+    gst_included, charger_kw, kwh_billed, start_pct, end_pct, charger_type,
+    operator, odometer_km, real_efficiency_pct, idle_minutes, fees_inr,
+    effective_inr_per_kwh` (blank where an old entry has no value).
   - Data lives only on the device under `voltiq-user` and
-    `voltiq-log:<username>`; each entry is ~60 bytes of JSON and the log is
-    capped at 500 entries, so the footprint stays well under 50 KB.
+    `voltiq-log:<username>`; each entry is ~200 bytes of JSON and the log is
+    capped at 500 entries, so the footprint stays around 100 KB.
   - Different usernames on the same device keep separate histories.
 - **Dark mode**: follows your system preference, with a toggle that remembers
   your choice.

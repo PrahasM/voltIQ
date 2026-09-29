@@ -1071,6 +1071,57 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .btn[hidden] { display: none; }
 
+/* Log dialog */
+.log-dialog {
+  width: min(460px, calc(100% - 1.5rem));
+  max-height: calc(100% - 1.5rem);
+  padding: 1.25rem;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  overflow: auto;
+}
+
+.log-dialog[open] { animation: rise 0.35s var(--ease); }
+
+.log-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.log-dialog h2 { margin: 0 0 0.35rem; font-size: 1.25rem; }
+
+.log-form .field { margin-bottom: 0.75rem; }
+
+.log-form .cap-note { margin-bottom: 0.25rem; }
+
+.add-charge-btn { margin: 1rem 0 0; }
+
+.learn-field .switch-text { font-size: 0.9rem; }
+
+input[type="datetime-local"] {
+  min-height: 48px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  background: var(--card-2);
+  color: var(--text);
+}
+
+input[type="datetime-local"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.history-meta + .history-meta { margin-top: 0.05rem; }
+
 /* Message */
 .message {
   margin: 1rem 0 0;

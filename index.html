@@ -220,6 +220,7 @@
         </div>
       </div>
 
+      <button type="button" id="add-charge-btn" class="btn btn-ghost btn-block add-charge-btn">+ Add a charge</button>
       <p id="history-empty" class="history-empty">No charges logged yet. Run a calculation and tap <strong>Log this charge</strong>.</p>
       <ul id="history-list" class="history-list"></ul>
 
@@ -237,6 +238,21 @@
       <div class="field">
         <label for="eff-ac">AC charging efficiency <span class="unit">%</span></label>
         <input type="number" id="eff-ac" min="50" max="100" step="any" value="87" inputmode="decimal" />
+      </div>
+      <p id="learn-hint" class="settings-intro">Log 3 or more charges of a type (AC or DC) and voltIQ will learn your real efficiency.</p>
+      <div id="learn-dc" class="field switch-field learn-field" hidden>
+        <label class="switch" for="use-learned-dc">
+          <span class="switch-text" id="learn-dc-text">Use learned DC efficiency</span>
+          <input type="checkbox" id="use-learned-dc" role="switch" />
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        </label>
+      </div>
+      <div id="learn-ac" class="field switch-field learn-field" hidden>
+        <label class="switch" for="use-learned-ac">
+          <span class="switch-text" id="learn-ac-text">Use learned AC efficiency</span>
+          <input type="checkbox" id="use-learned-ac" role="switch" />
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        </label>
       </div>
       <h3 class="settings-heading">Your car</h3>
       <p class="settings-intro">The most power your car can accept. Charging time uses the lower of the charger's power and these limits.</p>
@@ -293,6 +309,74 @@
       </form>
     </section>
     </div>
+
+    <dialog id="log-dialog" class="log-dialog" aria-labelledby="log-title">
+      <form id="log-form" class="log-form" novalidate>
+        <h2 id="log-title">Log a charge</h2>
+        <p class="settings-intro">Enter what the charger or receipt says. voltIQ uses it to learn your real efficiency.</p>
+        <div class="field">
+          <label for="log-date">Date &amp; time</label>
+          <input type="datetime-local" id="log-date" />
+        </div>
+        <div class="field">
+          <label for="log-operator">Operator</label>
+          <select id="log-operator"><option value="">None / manual</option></select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="log-type">Charger type</label>
+            <select id="log-type">
+              <option value="dc">DC</option>
+              <option value="ac">AC</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="log-kw">Charger <span class="unit">kW</span></label>
+            <input type="number" id="log-kw" min="0.1" step="any" placeholder="e.g. 60" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="log-start">Start <span class="unit">%</span></label>
+            <input type="number" id="log-start" min="0" max="100" step="any" inputmode="decimal" />
+          </div>
+          <div class="field">
+            <label for="log-end">End <span class="unit">%</span></label>
+            <input type="number" id="log-end" min="0" max="100" step="any" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="log-kwh">kWh billed</label>
+            <input type="number" id="log-kwh" min="0.01" step="any" inputmode="decimal" />
+          </div>
+          <div class="field">
+            <label for="log-amount">Amount paid <span class="unit">₹</span></label>
+            <input type="number" id="log-amount" min="0" step="any" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="log-rate">Rate <span class="unit">₹ / kWh</span></label>
+            <input type="number" id="log-rate" min="0" step="any" inputmode="decimal" />
+          </div>
+          <div class="field">
+            <label for="log-idle">Idle time <span class="unit">min, optional</span></label>
+            <input type="number" id="log-idle" min="0" step="any" placeholder="0" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="log-odo">Odometer <span class="unit">km, optional</span></label>
+          <input type="number" id="log-odo" min="0" step="any" inputmode="numeric" />
+        </div>
+        <p id="log-preview" class="cap-note" role="status"></p>
+        <p id="log-message" class="message" role="alert" hidden></p>
+        <div class="history-actions">
+          <button type="button" id="log-cancel" class="btn btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save charge</button>
+        </div>
+      </form>
+    </dialog>
 
     <footer class="footer">
       Powered by <strong>Motion Intelligence</strong> <span class="mi">MI</span>
