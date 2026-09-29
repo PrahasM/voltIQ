@@ -469,6 +469,10 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 .mode-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
+.charger-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.charger-chips .chip-custom { grid-column: 1 / -1; }
+.charger-chips .chip small { white-space: nowrap; }
+
 .chip {
   position: relative;
   cursor: pointer;
@@ -1044,6 +1048,9 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   .mode-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mode-chips .chip strong { font-size: 0.85rem; }
   .mode-chips .chip small { display: none; }
+  .charger-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; }
+  .charger-chips .chip strong { font-size: 0.85rem; }
+  .charger-chips .chip small { font-size: 0.62rem; }
   h1 { font-size: 1.35rem; }
   .hero { padding: 1.25rem 0.75rem; }
   .user-form { flex-direction: column; }

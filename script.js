@@ -672,10 +672,14 @@ function selectedChargerKw() {
   return checked ? parseFloat(checked.value) : NaN;
 }
 
-function selectedEfficiency() {
+function selectedChargerType() {
   const checked = chargerInputs.find((el) => el.checked);
   const type = checked?.value === "custom" ? customTypeInput.value : checked?.dataset.type;
-  return type === "ac" ? acEfficiency : dcEfficiency;
+  return type === "ac" ? "ac" : "dc";
+}
+
+function selectedEfficiency() {
+  return selectedChargerType() === "ac" ? acEfficiency : dcEfficiency;
 }
 
 function syncCustomCharger() {

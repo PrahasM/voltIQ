@@ -124,13 +124,16 @@
 
       <fieldset class="field chargers">
         <legend>Charger</legend>
-        <div class="chips" role="radiogroup" aria-label="Charger power">
-          <label class="chip" style="--i: 0"><input type="radio" name="charger" value="3" data-type="ac" /><span><strong>3 kW</strong><small>Home</small></span></label>
-          <label class="chip" style="--i: 1"><input type="radio" name="charger" value="7" data-type="ac" /><span><strong>7 kW</strong><small>Home AC</small></span></label>
-          <label class="chip" style="--i: 2"><input type="radio" name="charger" value="22" data-type="dc" /><span><strong>22 kW</strong><small>Fast DC</small></span></label>
-          <label class="chip" style="--i: 3"><input type="radio" name="charger" value="60" data-type="dc" checked /><span><strong>60 kW</strong><small>Fast DC</small></span></label>
-          <label class="chip" style="--i: 4"><input type="radio" name="charger" value="120" data-type="dc" /><span><strong>120 kW</strong><small>Rapid DC</small></span></label>
-          <label class="chip" style="--i: 5"><input type="radio" name="charger" value="custom" /><span><strong>Custom</strong><small>Enter kW</small></span></label>
+        <div class="chips charger-chips" role="radiogroup" aria-label="Charger power">
+          <label class="chip" style="--i: 0"><input type="radio" name="charger" value="3.3" data-type="ac" /><span><strong>3.3 kW</strong><small>AC · Home</small></span></label>
+          <label class="chip" style="--i: 1"><input type="radio" name="charger" value="7.2" data-type="ac" /><span><strong>7.2 kW</strong><small>AC · Wallbox</small></span></label>
+          <label class="chip" style="--i: 2"><input type="radio" name="charger" value="11" data-type="ac" /><span><strong>11 kW</strong><small>AC · 3-phase</small></span></label>
+          <label class="chip" style="--i: 3"><input type="radio" name="charger" value="22" data-type="ac" /><span><strong>22 kW</strong><small>AC · Fast</small></span></label>
+          <label class="chip" style="--i: 4"><input type="radio" name="charger" value="30" data-type="dc" /><span><strong>30 kW</strong><small>DC · Fast</small></span></label>
+          <label class="chip" style="--i: 5"><input type="radio" name="charger" value="60" data-type="dc" checked /><span><strong>60 kW</strong><small>DC · Fast</small></span></label>
+          <label class="chip" style="--i: 6"><input type="radio" name="charger" value="120" data-type="dc" /><span><strong>120 kW</strong><small>DC · Rapid</small></span></label>
+          <label class="chip" style="--i: 7"><input type="radio" name="charger" value="180" data-type="dc" /><span><strong>180 kW</strong><small>DC · Ultra</small></span></label>
+          <label class="chip chip-custom" style="--i: 8"><input type="radio" name="charger" value="custom" /><span><strong>Custom</strong><small>Any kW · AC or DC</small></span></label>
         </div>
         <div id="custom-charger" class="custom-charger" hidden>
           <label for="custom-kw">Charger power <span class="unit">kW</span></label>

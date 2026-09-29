@@ -47,10 +47,13 @@ need and what it will cost.
     base (excl. GST) = total / 1.18, GST = total − base.
   - OFF – total = energy to buy × rate with no GST; base = total, GST = 0 and the GST
     row is hidden from the breakdown.
-- **Charger power**: tap one of the chips — 3 kW (Home), 7 kW (Home AC),
-  22 kW (Fast DC), 60 kW (Fast DC, default), 120 kW (Rapid DC) — or choose
-  **Custom** to type any charger power in kW and choose AC or DC. The 3 and 7 kW
-  presets use AC efficiency; the 22, 60 and 120 kW presets use DC efficiency.
+- **Charger power**: tap one of the Indian-station presets. Every chip shows
+  whether it is AC or DC:
+  - **AC**: 3.3 kW (Home), 7.2 kW (Wallbox), 11 kW (3-phase), 22 kW (Fast AC)
+  - **DC**: 30 kW (Fast), 60 kW (Fast, default), 120 kW (Rapid), 180 kW (Ultra)
+  - **Custom**: type any charger power in kW and choose AC or DC.
+
+  AC presets use the AC efficiency and DC presets use the DC efficiency.
   Estimated charging time is `energy to buy / charger power`.
 - **Your name, your history** (no account, no server): on first open you pick a
   short username. It is saved in the browser's `localStorage` on that device
