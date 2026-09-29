@@ -17,13 +17,13 @@ need and what it will cost.
   - **By ₹ amount**: enter how much you want to spend (**Amount to spend ₹**).
     Shows the final % you'll reach, the kWh bought (`amount / rate`), the energy
     delivered to the battery (`kWh bought × efficiency`), the GST breakdown and
-    the charging time (`kWh bought / charger power`).
+    the charging time (`kWh bought / effective power`, taper-aware).
   - **By time**: enter how long you'll charge (**Charging time**, in minutes).
     Shows the final % you'll reach, the kWh delivered to the battery
-    (`charger power × hours × efficiency`), the energy drawn from the charger and
+    (`effective power × hours × efficiency`, slowed by the DC taper above 80%), the energy drawn from the charger and
     the cost (`energy drawn × rate`) with GST breakdown.
-  - All modes apply the charging efficiency, the 18% GST toggle and the charger
-    power. In ₹ and time modes the final % is capped at 100%; if your budget or
+  - All modes apply the charging efficiency, the 18% GST toggle and the
+    effective charging power. In ₹ and time modes the final % is capped at 100%; if your budget or
     time would overfill the battery, the energy, cost and time are trimmed to
     what's needed to reach 100% and a note tells you so.
 - **Easy % inputs**: current battery % has large − / + steppers (step 1, clamped
@@ -40,18 +40,55 @@ need and what it will cost.
 - **Settings**: DC efficiency defaults to 92% and AC efficiency to 87%. Edit either
   value from 50–100% in the Settings tab; changes recalculate results and are saved
   on this device in `localStorage`.
+- **Operator presets**: in **Settings → Charging operators** add, edit or
+  delete the networks you use. Each preset stores the operator name, ₹/kWh,
+  whether that rate already includes GST, an optional session fee (₹) and an
+  optional idle fee (₹/min). Presets are saved **per user** under
+  `voltiq-operators:<username>` (matching the per-user prefs), as compact JSON
+  (`id, n = name, r = ₹/kWh, g = GST included 1/0, s = session fee, f = idle fee`).
+  - Pick one from the **Operator** dropdown on the Calculator: its rate is applied
+    to the rate slider and the GST switch is set from its "GST included" flag.
+    The last-used operator is saved in the user's prefs and selected again next time.
+  - Moving the rate slider away from the operator's rate switches back to
+    **Manual rate**.
+  - The session and idle fees are shown under the result and used for the
+    effective ₹/kWh of logged charges.
 - **Rate**: drag a slider to pick the charging rate, ₹5–₹40 / kWh in ₹0.50 steps
-  (default ₹25). The chosen rate is shown live and echoed under the total.
+  (default ₹25; the range widens if an operator's rate is outside it). The rate
+  label and the line under the total always state the GST treatment:
+  "incl. GST", "+18% GST" or "no GST".
 - **GST toggle** ("Include 18% GST", on by default):
-  - ON – the rate is treated as GST-inclusive: total = energy to buy × rate,
+  - ON – the rate is GST-inclusive ("incl. GST"): total = energy to buy × rate,
     base (excl. GST) = total / 1.18, GST = total − base.
-  - OFF – total = energy to buy × rate with no GST; base = total, GST = 0 and the GST
-    row is hidden from the breakdown.
-- **Charger power**: tap one of the chips — 3 kW (Home), 7 kW (Home AC),
-  22 kW (Fast DC), 60 kW (Fast DC, default), 120 kW (Rapid DC) — or choose
-  **Custom** to type any charger power in kW and choose AC or DC. The 3 and 7 kW
-  presets use AC efficiency; the 22, 60 and 120 kW presets use DC efficiency.
-  Estimated charging time is `energy to buy / charger power`.
+  - OFF with **Manual rate** – no GST ("no GST"): total = energy to buy × rate,
+    base = total, GST = 0 and the GST row is hidden from the breakdown.
+  - OFF with an **operator** selected (the switch reads "Rate includes 18% GST")
+    – GST is added on top ("+18% GST"): total = energy to buy × rate × 1.18,
+    base = total / 1.18, GST = total − base.
+- **Charger power**: tap one of the Indian-station presets. Every chip shows
+  whether it is AC or DC:
+  - **AC**: 3.3 kW (Home), 7.2 kW (Wallbox), 11 kW (3-phase), 22 kW (Fast AC)
+  - **DC**: 30 kW (Fast), 60 kW (Fast, default), 120 kW (Rapid), 180 kW (Ultra)
+  - **Custom**: type any charger power in kW and choose AC or DC.
+
+  AC presets use the AC efficiency and DC presets use the DC efficiency.
+- **Effective charging power**: your car limits how fast it can charge. In
+  **Settings → Your car** set **Car max AC power** (default 11 kW) and **Car max
+  DC power** (default 150 kW); they are saved on this device under
+  `voltiq-car-ac` / `voltiq-car-dc`. The effective power is
+  `min(charger power, car limit for the charger's AC/DC type)`, and every
+  charging time (and the energy drawn in **By time** mode) uses it. When the car
+  is the bottleneck a note under the time reads e.g. "Your car accepts max 11 kW AC".
+- **Taper-aware charging time**: DC charging slows down above 80%. Below 80%
+  the charge runs at the full effective power; above 80% on DC it runs at
+  **DC taper power above 80%** (Settings, default 40%, saved as
+  `voltiq-taper-dc`) of the effective power. AC charging never tapers.
+  - When a DC charge crosses 80% the results split the time into phases, e.g.
+    "42→80%: 28 min, 80→85%: 10 min", and a hint reads
+    "Stopping at 80% saves 10 min" (the time spent above 80%).
+  - On AC, or when the charge stays at or below 80%, a single time is shown.
+  - **By time** mode uses the same phases to work out how far the battery gets.
+  Estimated charging time is the sum of `phase energy to buy / phase power`.
 - **Your name, your history** (no account, no server): on first open you pick a
   short username. It is saved in the browser's `localStorage` on that device
   (phone, tablet or laptop), so the app remembers you next time. Tap
@@ -60,14 +97,52 @@ need and what it will cost.
   that already has history or saved settings on this device. Tap a name to
   continue as that user, or tap **Delete** (after a confirmation prompt) to remove
   that user's history and saved settings from the device.
-- **Log this charge**: after a calculation, one tap records the session
-  (date, battery-side kWh added, cost, rate, GST on/off, charger kW).
-- **History tab**: totals for money spent, energy charged, number of sessions
-  and average ₹/kWh, plus a list of every logged charge with per-entry delete,
-  **Export CSV** and **Clear history**.
+- **Log a charge** (post-charge logging): **Log this charge** on the Calculator
+  (or **+ Add a charge** on the History tab) opens a form where you enter what
+  the charger or receipt says: date & time, operator, charger type (AC/DC) and
+  kW, start %, end %, **kWh billed**, **amount paid**, rate, optional idle
+  minutes and optional odometer. A live preview shows what will be stored:
+  - **Real efficiency** = `(end% − start%) × battery capacity ÷ kWh billed`
+    (capacity is taken from the Calculator).
+  - **Effective ₹/kWh** = `(amount paid + session fee + idle fee × idle minutes) ÷ kWh billed`,
+    using the selected operator's fees.
+- **Pre-filled from the calculation**: **Log this charge** opens the form
+  already filled in from the current result — start % (current charge), end %
+  (target or the computed final %), kWh billed (the estimate to enter), amount,
+  rate, operator, charger type and kW. Just correct anything that differs from
+  the receipt and save. (**+ Add a charge** on History opens it blank.)
+- **Receipt photo** (optional): attach an image in the log form. It is
+  downscaled and re-encoded as a JPEG data URL (at most ~250 KB) and kept only
+  on this device in localStorage under `voltiq-photo:<username>:<timestamp>`;
+  the entry gets `p: 1`. History shows a thumbnail — tap it to view the photo.
+  If the device's storage is full, the charge is still logged and voltIQ tells
+  you the photo wasn't saved. Deleting an entry, clearing history or deleting
+  the user also deletes its photos.
+- **Learning your real efficiency**: once 3 or more logged charges of the same
+  type (AC or DC) have a plausible real efficiency (50–100%), voltIQ averages
+  them and offers to use the learned value instead of the manual DC / AC
+  efficiency setting (a prompt after the log that crosses the threshold, and a
+  **Use learned DC/AC efficiency** switch in Settings). Your choice is saved in
+  your per-user prefs (`learnDc` / `learnAc`).
+- **History tab**: totals for money spent (amount paid + fees), energy charged,
+  number of sessions and average ₹/kWh, plus a list of every logged charge
+  (kWh billed, start→end %, charger, operator, real efficiency, effective ₹/kWh,
+  odometer) with per-entry delete, **Export CSV** and **Clear history**.
+  - Log entries are compact JSON:
+    `t` date, `e` battery kWh added, `c` ₹ paid, `r` ₹/kWh, `g` GST
+    (1 incl. / 2 added / 0 none), `k` charger kW, `b` kWh billed, `s` start %,
+    `f` end %, `y` ac/dc, `o`/`oi` operator name/id, `d` odometer km,
+    `m` idle minutes, `fe` fees ₹, `x` real efficiency, `q` effective ₹/kWh,
+    `p` receipt photo stored.
+    Entries logged by older versions (`t, e, c, r, g, k` only) still display,
+    count in the totals and export.
+  - The CSV has the columns `date, energy_kwh, cost_inr, rate_inr_per_kwh,
+    gst_included, charger_kw, kwh_billed, start_pct, end_pct, charger_type,
+    operator, odometer_km, real_efficiency_pct, idle_minutes, fees_inr,
+    effective_inr_per_kwh` (blank where an old entry has no value).
   - Data lives only on the device under `voltiq-user` and
-    `voltiq-log:<username>`; each entry is ~60 bytes of JSON and the log is
-    capped at 500 entries, so the footprint stays well under 50 KB.
+    `voltiq-log:<username>`; each entry is ~200 bytes of JSON and the log is
+    capped at 500 entries, so the footprint stays around 100 KB.
   - Different usernames on the same device keep separate histories.
 - **Dark mode**: follows your system preference, with a toggle that remembers
   your choice.

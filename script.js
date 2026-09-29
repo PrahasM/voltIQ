@@ -3,10 +3,20 @@ const DEFAULT_DC_EFFICIENCY = 0.92;
 const DEFAULT_AC_EFFICIENCY = 0.87;
 const DC_EFFICIENCY_KEY = "voltiq-eff-dc";
 const AC_EFFICIENCY_KEY = "voltiq-eff-ac";
+const DEFAULT_CAR_AC_KW = 11;
+const DEFAULT_CAR_DC_KW = 150;
+const CAR_AC_KEY = "voltiq-car-ac";
+const CAR_DC_KEY = "voltiq-car-dc";
+const DEFAULT_DC_TAPER = 0.4;
+const DC_TAPER_KEY = "voltiq-taper-dc";
+const TAPER_SOC = 80;
 const THEME_KEY = "voltiq-theme";
 const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
 const PREFS_PREFIX = "voltiq-prefs:";
+const OPERATORS_PREFIX = "voltiq-operators:";
+const PHOTO_PREFIX = "voltiq-photo:";
+const MAX_PHOTO_CHARS = 250000;
 const MAX_LOG_ENTRIES = 500;
 
 const capacityInput = document.getElementById("capacity");
@@ -26,11 +36,33 @@ const chargerInputs = Array.from(document.querySelectorAll('input[name="charger"
 const rateInput = document.getElementById("rate");
 const rateValueEl = document.getElementById("rate-value");
 const gstToggle = document.getElementById("gst-toggle");
+const gstLabelEl = document.getElementById("gst-label");
+const operatorSelect = document.getElementById("operator");
+const rateMinEl = document.getElementById("rate-min");
+const rateMaxEl = document.getElementById("rate-max");
+const operatorListEl = document.getElementById("operator-list");
+const operatorEmptyEl = document.getElementById("operator-empty");
+const operatorForm = document.getElementById("operator-form");
+const opIdInput = document.getElementById("op-id");
+const opNameInput = document.getElementById("op-name");
+const opRateInput = document.getElementById("op-rate");
+const opGstInput = document.getElementById("op-gst");
+const opSessionInput = document.getElementById("op-session");
+const opIdleInput = document.getElementById("op-idle");
+const opSaveBtn = document.getElementById("op-save");
+const opCancelBtn = document.getElementById("op-cancel");
+const operatorMessageEl = document.getElementById("operator-message");
 const customChargerEl = document.getElementById("custom-charger");
 const customKwInput = document.getElementById("custom-kw");
 const customTypeInput = document.getElementById("custom-type");
 const dcEfficiencyInput = document.getElementById("eff-dc");
 const acEfficiencyInput = document.getElementById("eff-ac");
+const carAcInput = document.getElementById("car-ac");
+const carDcInput = document.getElementById("car-dc");
+const powerNoteEl = document.getElementById("power-note");
+const dcTaperInput = document.getElementById("taper-dc");
+const phasesEl = document.getElementById("phases");
+const taperHintEl = document.getElementById("taper-hint");
 const settingsMessageEl = document.getElementById("settings-message");
 const heroSubEl = document.getElementById("hero-sub");
 const gstRowEl = document.getElementById("gst-row");
@@ -78,6 +110,37 @@ const historyEmptyEl = document.getElementById("history-empty");
 const historyListEl = document.getElementById("history-list");
 const exportBtn = document.getElementById("export-btn");
 const clearBtn = document.getElementById("clear-btn");
+const addChargeBtn = document.getElementById("add-charge-btn");
+const logDialog = document.getElementById("log-dialog");
+const logForm = document.getElementById("log-form");
+const logDateInput = document.getElementById("log-date");
+const logOperatorSelect = document.getElementById("log-operator");
+const logTypeInput = document.getElementById("log-type");
+const logKwInput = document.getElementById("log-kw");
+const logStartInput = document.getElementById("log-start");
+const logEndInput = document.getElementById("log-end");
+const logKwhInput = document.getElementById("log-kwh");
+const logAmountInput = document.getElementById("log-amount");
+const logRateInput = document.getElementById("log-rate");
+const logIdleInput = document.getElementById("log-idle");
+const logOdoInput = document.getElementById("log-odo");
+const logPreviewEl = document.getElementById("log-preview");
+const logMessageEl = document.getElementById("log-message");
+const logCancelBtn = document.getElementById("log-cancel");
+const useLearnedDcInput = document.getElementById("use-learned-dc");
+const useLearnedAcInput = document.getElementById("use-learned-ac");
+const learnDcEl = document.getElementById("learn-dc");
+const learnAcEl = document.getElementById("learn-ac");
+const learnDcTextEl = document.getElementById("learn-dc-text");
+const learnAcTextEl = document.getElementById("learn-ac-text");
+const learnHintEl = document.getElementById("learn-hint");
+const logPhotoInput = document.getElementById("log-photo");
+const logPhotoPreviewEl = document.getElementById("log-photo-preview");
+const logPhotoImg = document.getElementById("log-photo-img");
+const logPhotoRemoveBtn = document.getElementById("log-photo-remove");
+const photoDialog = document.getElementById("photo-dialog");
+const photoFullImg = document.getElementById("photo-full");
+const photoCloseBtn = document.getElementById("photo-close");
 
 const numberInputs = [capacityInput, currentInput, targetInput, budgetInput, timeInput, customKwInput];
 const outputEls = [enterKwhEl, finalPctEl, energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
@@ -109,7 +172,7 @@ function formatMoney(value) {
 }
 
 function formatRate(value) {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 1 })} / kWh`;
+  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / kWh`;
 }
 
 function formatEnergy(value) {
@@ -118,6 +181,10 @@ function formatEnergy(value) {
 
 function kwhToEnter(energyToBuy) {
   return Math.ceil(Math.round(energyToBuy * 1000) / 1000);
+}
+
+function formatKw(value) {
+  return value.toLocaleString("en-IN", { maximumFractionDigits: 1 });
 }
 
 function formatPercent(value) {
@@ -211,6 +278,9 @@ function resetOutputs() {
   batteryNowEl.style.width = "0%";
   batteryAddEl.style.width = "0%";
   capNoteEl.hidden = true;
+  powerNoteEl.hidden = true;
+  phasesEl.hidden = true;
+  taperHintEl.hidden = true;
 }
 
 function showError(error) {
@@ -263,7 +333,30 @@ function logKey(user) {
   return LOG_PREFIX + user;
 }
 
-// Entries are stored compactly: t = timestamp (ms), e = kWh, c = ₹ total, r = ₹/kWh, g = GST on (1/0), k = charger kW
+function photoKey(user, timestamp) {
+  return `${PHOTO_PREFIX}${user}:${timestamp}`;
+}
+
+function removePhotos(user) {
+  try {
+    const prefix = `${PHOTO_PREFIX}${user}:`;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) keys.push(key);
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* ignore */
+  }
+}
+
+// Entries are stored compactly (fields after k were added with the log form; older entries may lack them):
+// t = timestamp (ms), e = battery kWh added, c = ₹ amount paid, r = ₹/kWh,
+// g = GST (1 = incl., 2 = added on top, 0 = none), k = charger kW, b = kWh billed,
+// s = start %, f = end %, y = charger type ("ac"/"dc"), o = operator name, oi = operator id,
+// d = odometer km, m = idle minutes, fe = ₹ session + idle fees, x = real efficiency (0–1),
+// q = effective ₹/kWh incl. fees, p = 1 when a receipt photo is stored under photoKey(user, t)
 function loadLog(user) {
   const raw = storageGet(logKey(user));
   if (!raw) return [];
@@ -296,6 +389,9 @@ function savePrefs(user) {
       rate: rateInput.value,
       gstOn: gstToggle.checked,
       charger: checked ? checked.value : null,
+      operator: operatorSelect.value,
+      learnDc: useLearnedDcInput.checked,
+      learnAc: useLearnedAcInput.checked,
       customKw: customKwInput.value,
       customType: customTypeInput.value,
     })
@@ -333,6 +429,14 @@ function applyPrefs(prefs) {
       if (prefs.customType === "ac" || prefs.customType === "dc") customTypeInput.value = prefs.customType;
     }
   }
+  useLearnedDcInput.checked = prefs.learnDc === true;
+  useLearnedAcInput.checked = prefs.learnAc === true;
+  renderOperatorSelect();
+  const operator = findOperator(prefs.operator);
+  if (operator) {
+    operatorSelect.value = operator.id;
+    applyOperator(operator);
+  }
   updateRateLabel();
   syncCustomCharger();
 }
@@ -343,6 +447,11 @@ function setUser(user, { quickEntry = false } = {}) {
   userLabelEl.textContent = user;
   userSetupEl.hidden = true;
   appEl.hidden = false;
+  operators = loadOperators(user);
+  useLearnedDcInput.checked = useLearnedAcInput.checked = false;
+  renderOperatorSelect();
+  renderOperatorList();
+  resetOperatorForm();
   renderHistory();
   if (quickEntry) {
     applyPrefs(loadPrefs(user));
@@ -372,7 +481,7 @@ function listUsers() {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
-      const prefix = [PREFS_PREFIX, LOG_PREFIX].find((p) => key.startsWith(p));
+      const prefix = [PREFS_PREFIX, LOG_PREFIX, OPERATORS_PREFIX].find((p) => key.startsWith(p));
       if (prefix) {
         const user = key.slice(prefix.length);
         if (user) users.add(user);
@@ -419,6 +528,8 @@ function deleteUser(user) {
   try {
     localStorage.removeItem(logKey(user));
     localStorage.removeItem(prefsKey(user));
+    localStorage.removeItem(operatorsKey(user));
+    removePhotos(user);
   } catch {
     /* ignore */
   }
@@ -468,6 +579,223 @@ userForm.addEventListener("submit", (event) => {
 
 switchUserBtn.addEventListener("click", clearUser);
 
+/* ---------- Operators ---------- */
+
+let operators = [];
+
+function operatorsKey(user) {
+  return OPERATORS_PREFIX + user;
+}
+
+// Operators are stored per user: id, n = name, r = ₹/kWh, g = rate includes GST (1/0), s = session fee ₹, f = idle fee ₹/min
+function loadOperators(user) {
+  const raw = storageGet(operatorsKey(user));
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((o) => o && o.id && o.n && o.r > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOperators(user, list) {
+  return storageSet(operatorsKey(user), JSON.stringify(list));
+}
+
+function findOperator(id) {
+  return operators.find((o) => o.id === id) || null;
+}
+
+function selectedOperator() {
+  return findOperator(operatorSelect.value);
+}
+
+function formatOperatorFees(op) {
+  const fees = [];
+  if (op.s > 0) fees.push(`₹${formatMoney(op.s)} session`);
+  if (op.f > 0) fees.push(`₹${formatMoney(op.f)}/min idle`);
+  return fees;
+}
+
+function renderOperatorSelect() {
+  const selected = operatorSelect.value;
+  const manual = document.createElement("option");
+  manual.value = "";
+  manual.textContent = "Manual rate";
+  operatorSelect.replaceChildren(
+    manual,
+    ...operators.map((op) => {
+      const option = document.createElement("option");
+      option.value = op.id;
+      option.textContent = `${op.n} · ${formatRate(op.r)} ${op.g ? "incl. GST" : "+18% GST"}`;
+      return option;
+    })
+  );
+  operatorSelect.value = findOperator(selected) ? selected : "";
+}
+
+function renderOperatorList() {
+  operatorEmptyEl.hidden = operators.length > 0;
+  operatorListEl.replaceChildren(
+    ...operators.map((op, i) => {
+      const li = document.createElement("li");
+      li.className = "history-item";
+      li.style.setProperty("--i", String(Math.min(i, 8)));
+
+      const main = document.createElement("div");
+      main.className = "history-main";
+      const name = document.createElement("strong");
+      name.textContent = op.n;
+      const meta = document.createElement("span");
+      meta.className = "history-meta";
+      meta.textContent = [`${formatRate(op.r)} ${op.g ? "incl. GST" : "+18% GST"}`, ...formatOperatorFees(op)].join(" · ");
+      main.append(name, meta);
+
+      const side = document.createElement("div");
+      side.className = "history-side";
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "btn btn-ghost";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => editOperator(op.id));
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "icon-btn";
+      del.setAttribute("aria-label", `Delete ${op.n}`);
+      del.textContent = "×";
+      del.addEventListener("click", () => deleteOperator(op.id));
+      side.append(edit, del);
+
+      li.append(main, side);
+      return li;
+    })
+  );
+}
+
+function resetOperatorForm() {
+  operatorForm.reset();
+  opIdInput.value = "";
+  opGstInput.checked = true;
+  opSaveBtn.textContent = "Add operator";
+  opCancelBtn.hidden = true;
+  operatorMessageEl.hidden = true;
+  [opNameInput, opRateInput, opSessionInput, opIdleInput].forEach((el) => el.classList.remove("invalid"));
+}
+
+function editOperator(id) {
+  const op = findOperator(id);
+  if (!op) return;
+  resetOperatorForm();
+  opIdInput.value = op.id;
+  opNameInput.value = op.n;
+  opRateInput.value = String(op.r);
+  opGstInput.checked = Boolean(op.g);
+  opSessionInput.value = op.s ? String(op.s) : "";
+  opIdleInput.value = op.f ? String(op.f) : "";
+  opSaveBtn.textContent = "Save changes";
+  opCancelBtn.hidden = false;
+  opNameInput.focus();
+}
+
+function operatorFormError() {
+  const name = opNameInput.value.trim();
+  const rate = Number(opRateInput.value);
+  const session = opSessionInput.value.trim() === "" ? 0 : Number(opSessionInput.value);
+  const idle = opIdleInput.value.trim() === "" ? 0 : Number(opIdleInput.value);
+  if (!name) return { field: opNameInput, text: "Please enter an operator name." };
+  if (!opRateInput.value || !Number.isFinite(rate) || rate <= 0 || rate > 200) {
+    return { field: opRateInput, text: "Rate must be between ₹0.01 and ₹200 / kWh." };
+  }
+  if (!Number.isFinite(session) || session < 0) return { field: opSessionInput, text: "Session fee can't be negative." };
+  if (!Number.isFinite(idle) || idle < 0) return { field: opIdleInput, text: "Idle fee can't be negative." };
+  return null;
+}
+
+function submitOperator(event) {
+  event.preventDefault();
+  if (!currentUser) return;
+  const fields = [opNameInput, opRateInput, opSessionInput, opIdleInput];
+  const error = operatorFormError();
+  fields.forEach((el) => el.classList.toggle("invalid", Boolean(error) && el === error.field));
+  if (error) {
+    operatorMessageEl.textContent = error.text;
+    operatorMessageEl.hidden = false;
+    error.field.focus();
+    return;
+  }
+
+  const op = {
+    id: opIdInput.value || Date.now().toString(36),
+    n: opNameInput.value.trim().slice(0, 32),
+    r: Number(opRateInput.value),
+    g: opGstInput.checked ? 1 : 0,
+    s: Number(opSessionInput.value) || 0,
+    f: Number(opIdleInput.value) || 0,
+  };
+  const index = operators.findIndex((o) => o.id === op.id);
+  const next = index >= 0 ? operators.map((o) => (o.id === op.id ? op : o)) : [...operators, op];
+  if (!saveOperators(currentUser, next)) {
+    operatorMessageEl.textContent = "Couldn't save — storage is unavailable on this device.";
+    operatorMessageEl.hidden = false;
+    return;
+  }
+  operators = next;
+  renderOperatorSelect();
+  renderOperatorList();
+  resetOperatorForm();
+  if (operatorSelect.value === op.id) onOperatorChange();
+}
+
+function deleteOperator(id) {
+  const op = findOperator(id);
+  if (!op || !currentUser) return;
+  if (!window.confirm(`Delete operator ${op.n}?`)) return;
+  operators = operators.filter((o) => o.id !== id);
+  saveOperators(currentUser, operators);
+  if (opIdInput.value === id) resetOperatorForm();
+  renderOperatorSelect();
+  renderOperatorList();
+  calculate();
+  savePrefs(currentUser);
+}
+
+function syncRateBounds(rate) {
+  rateInput.min = String(Math.min(5, Math.floor(rate)));
+  rateInput.max = String(Math.max(40, Math.ceil(rate)));
+  rateInput.step = Number.isInteger(rate * 2) ? "0.5" : "0.01";
+  rateMinEl.textContent = `₹${rateInput.min}`;
+  rateMaxEl.textContent = `₹${rateInput.max}`;
+}
+
+function applyOperator(op) {
+  syncRateBounds(op.r);
+  rateInput.value = String(op.r);
+  gstToggle.checked = Boolean(op.g);
+}
+
+function onOperatorChange() {
+  const op = selectedOperator();
+  if (op) applyOperator(op);
+  updateRateLabel();
+  calculate();
+  if (currentUser) savePrefs(currentUser);
+}
+
+function onRateInput() {
+  const op = selectedOperator();
+  if (op && parseFloat(rateInput.value) !== op.r) {
+    operatorSelect.value = "";
+    rateInput.step = "0.5";
+  }
+  updateRateLabel();
+  calculate();
+}
+
+operatorSelect.addEventListener("change", onOperatorChange);
+operatorForm.addEventListener("submit", submitOperator);
+opCancelBtn.addEventListener("click", resetOperatorForm);
+
 /* ---------- Tabs ---------- */
 
 function showTab(tabId) {
@@ -494,6 +822,9 @@ tabs.forEach((tab) => {
 
 /* ---------- History ---------- */
 
+const LEARN_MIN_LOGS = 3;
+let learned = { ac: null, dc: null };
+
 function formatDate(ms) {
   return new Date(ms).toLocaleString("en-IN", {
     day: "numeric",
@@ -503,11 +834,47 @@ function formatDate(ms) {
   });
 }
 
+function entrySpent(entry) {
+  return (Number(entry.c) || 0) + (Number(entry.fe) || 0);
+}
+
+function computeLearned(entries) {
+  const result = { ac: null, dc: null };
+  ["ac", "dc"].forEach((type) => {
+    const values = entries.filter((e) => e.y === type && e.x >= 0.5 && e.x <= 1).map((e) => e.x);
+    if (values.length >= LEARN_MIN_LOGS) {
+      result[type] = { avg: values.reduce((sum, x) => sum + x, 0) / values.length, n: values.length };
+    }
+  });
+  return result;
+}
+
+function learnedEfficiency(type) {
+  const toggle = type === "ac" ? useLearnedAcInput : useLearnedDcInput;
+  return toggle.checked && learned[type] ? learned[type].avg : null;
+}
+
+function renderLearned() {
+  [
+    ["dc", learnDcEl, learnDcTextEl],
+    ["ac", learnAcEl, learnAcTextEl],
+  ].forEach(([type, wrap, text]) => {
+    const value = learned[type];
+    wrap.hidden = !value;
+    if (value) {
+      text.textContent = `Use learned ${type.toUpperCase()} efficiency: ${formatPercent(value.avg * 100)}% (from ${value.n} charges)`;
+    }
+  });
+  learnHintEl.hidden = Boolean(learned.ac && learned.dc);
+}
+
 function renderHistory() {
   if (!currentUser) return;
   const entries = loadLog(currentUser);
-  const spent = entries.reduce((sum, e) => sum + e.c, 0);
-  const energy = entries.reduce((sum, e) => sum + e.e, 0);
+  learned = computeLearned(entries);
+  renderLearned();
+  const spent = entries.reduce((sum, e) => sum + entrySpent(e), 0);
+  const energy = entries.reduce((sum, e) => sum + (Number(e.e) || 0), 0);
 
   histSpentEl.textContent = formatMoney(spent);
   histEnergyEl.textContent = formatEnergy(energy);
@@ -531,11 +898,37 @@ function renderHistory() {
         const main = document.createElement("div");
         main.className = "history-main";
         const cost = document.createElement("strong");
-        cost.textContent = `₹${formatMoney(entry.c)}`;
+        cost.textContent = `₹${formatMoney(entrySpent(entry))}`;
         const meta = document.createElement("span");
         meta.className = "history-meta";
-        meta.textContent = `${formatEnergy(entry.e)} kWh · ${formatRate(entry.r)}${entry.g ? " · GST" : ""} · ${entry.k} kW`;
+        const gst = entry.g === 2 ? " · +GST" : entry.g ? " · GST" : "";
+        const charger = [entry.y ? entry.y.toUpperCase() : "", entry.k ? `${entry.k} kW` : ""].filter(Boolean).join(" ");
+        meta.textContent =
+          typeof entry.b === "number"
+            ? [
+                `${formatEnergy(entry.b)} kWh billed`,
+                typeof entry.s === "number" && typeof entry.f === "number"
+                  ? `${formatPercent(entry.s)}→${formatPercent(entry.f)}%`
+                  : "",
+                charger,
+                entry.o || "",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : `${formatEnergy(entry.e)} kWh · ${formatRate(entry.r)}${gst} · ${entry.k} kW`;
         main.append(cost, meta);
+
+        const extra = [
+          typeof entry.x === "number" ? `${formatPercent(entry.x * 100)}% efficient` : "",
+          typeof entry.q === "number" ? `${formatRate(entry.q)} effective` : "",
+          typeof entry.d === "number" ? `${entry.d.toLocaleString("en-IN")} km` : "",
+        ].filter(Boolean);
+        if (extra.length) {
+          const meta2 = document.createElement("span");
+          meta2.className = "history-meta";
+          meta2.textContent = extra.join(" · ");
+          main.append(meta2);
+        }
 
         const side = document.createElement("div");
         side.className = "history-side";
@@ -548,12 +941,37 @@ function renderHistory() {
         del.setAttribute("aria-label", "Delete this entry");
         del.textContent = "×";
         del.addEventListener("click", () => deleteEntry(entry.t));
+        const photo = entry.p ? storageGet(photoKey(currentUser, entry.t)) : null;
+        if (photo) {
+          const thumb = document.createElement("button");
+          thumb.type = "button";
+          thumb.className = "photo-thumb";
+          thumb.setAttribute("aria-label", "View receipt photo");
+          const img = document.createElement("img");
+          img.src = photo;
+          img.alt = "";
+          thumb.append(img);
+          thumb.addEventListener("click", () => openPhoto(photo));
+          side.append(thumb);
+        }
         side.append(date, del);
 
         li.append(main, side);
         return li;
       })
   );
+}
+
+function openPhoto(src) {
+  photoFullImg.src = src;
+  if (typeof photoDialog.showModal === "function") photoDialog.showModal();
+  else photoDialog.setAttribute("open", "");
+}
+
+function closePhoto() {
+  if (typeof photoDialog.close === "function") photoDialog.close();
+  else photoDialog.removeAttribute("open");
+  photoFullImg.removeAttribute("src");
 }
 
 function showToast(text) {
@@ -565,39 +983,332 @@ function showToast(text) {
   }, 2200);
 }
 
-function logCharge() {
-  if (!currentUser || !lastResult) return;
-  const entries = loadLog(currentUser);
-  entries.push({
-    t: Date.now(),
-    e: Math.round(lastResult.energy * 100) / 100,
-    c: Math.round(lastResult.total * 100) / 100,
-    r: lastResult.rate,
-    g: lastResult.gstOn ? 1 : 0,
-    k: lastResult.chargerKw,
+/* ---------- Log form ---------- */
+
+const logFormNumbers = () => [logKwInput, logStartInput, logEndInput, logKwhInput, logAmountInput, logRateInput, logIdleInput, logOdoInput];
+
+function toLocalInput(ms) {
+  const date = new Date(ms);
+  return new Date(ms - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function renderLogOperators(selectedId) {
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "None / manual";
+  logOperatorSelect.replaceChildren(
+    none,
+    ...operators.map((op) => {
+      const option = document.createElement("option");
+      option.value = op.id;
+      option.textContent = op.n;
+      return option;
+    })
+  );
+  logOperatorSelect.value = findOperator(selectedId) ? selectedId : "";
+}
+
+let pendingPhoto = null;
+
+function setPendingPhoto(dataUrl) {
+  pendingPhoto = dataUrl;
+  logPhotoPreviewEl.hidden = !dataUrl;
+  if (dataUrl) logPhotoImg.src = dataUrl;
+  else {
+    logPhotoImg.removeAttribute("src");
+    logPhotoInput.value = "";
+  }
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
   });
-  if (!saveLog(currentUser, entries)) {
-    showToast("Couldn't save — storage is unavailable on this device.");
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Downscales and re-encodes as JPEG until the data URL fits MAX_PHOTO_CHARS.
+async function compressPhoto(file) {
+  const img = await loadImage(await readFileAsDataUrl(file));
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  let maxSide = 1024;
+  let quality = 0.7;
+  while (maxSide >= 320) {
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    if (dataUrl.length <= MAX_PHOTO_CHARS) return dataUrl;
+    if (quality > 0.45) quality -= 0.15;
+    else maxSide = Math.round(maxSide * 0.75);
+  }
+  return null;
+}
+
+async function onPhotoChange() {
+  const file = logPhotoInput.files && logPhotoInput.files[0];
+  logMessageEl.hidden = true;
+  if (!file) {
+    setPendingPhoto(null);
     return;
   }
+  try {
+    const dataUrl = await compressPhoto(file);
+    if (!dataUrl) throw new Error("too large");
+    setPendingPhoto(dataUrl);
+  } catch {
+    setPendingPhoto(null);
+    logMessageEl.textContent = "Couldn't read that photo — try a smaller image.";
+    logMessageEl.hidden = false;
+  }
+}
+
+function openLogForm(values = {}) {
+  if (!currentUser) return;
+  logForm.reset();
+  setPendingPhoto(null);
+  logFormNumbers().forEach((el) => el.classList.remove("invalid"));
+  logMessageEl.hidden = true;
+  logDateInput.value = toLocalInput(Date.now());
+  renderLogOperators(values.operatorId ?? operatorSelect.value);
+  logTypeInput.value = values.type || selectedChargerType();
+  const set = (input, value) => {
+    input.value = typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+  };
+  set(logKwInput, values.kw);
+  set(logStartInput, values.start);
+  set(logEndInput, values.end);
+  set(logKwhInput, values.kwh);
+  set(logAmountInput, values.amount);
+  set(logRateInput, values.rate);
+  updateLogPreview();
+  if (typeof logDialog.showModal === "function") logDialog.showModal();
+  else logDialog.setAttribute("open", "");
+}
+
+function closeLogForm() {
+  if (typeof logDialog.close === "function") logDialog.close();
+  else logDialog.removeAttribute("open");
+}
+
+function readOptional(input) {
+  return input.value.trim() === "" ? null : Number(input.value);
+}
+
+function readLogForm() {
+  const op = findOperator(logOperatorSelect.value);
+  const capacity = parseFloat(capacityInput.value);
+  const start = readOptional(logStartInput);
+  const end = readOptional(logEndInput);
+  const kwh = readOptional(logKwhInput);
+  const amount = readOptional(logAmountInput);
+  const idle = readOptional(logIdleInput) ?? 0;
+  const fees = op ? (op.s || 0) + (op.f || 0) * idle : 0;
+  const energy = start !== null && end !== null && capacity > 0 ? ((end - start) * capacity) / 100 : null;
+  return {
+    op,
+    t: new Date(logDateInput.value).getTime(),
+    type: logTypeInput.value === "ac" ? "ac" : "dc",
+    kw: readOptional(logKwInput),
+    start,
+    end,
+    kwh,
+    amount,
+    rate: readOptional(logRateInput),
+    idle,
+    odo: readOptional(logOdoInput),
+    capacity,
+    fees,
+    energy,
+    efficiency: energy !== null && kwh > 0 ? energy / kwh : null,
+    effectiveRate: amount !== null && kwh > 0 ? (amount + fees) / kwh : null,
+  };
+}
+
+function logFormError(v) {
+  if (!Number.isFinite(v.t)) return { field: logDateInput, text: "Please enter the date and time of the charge." };
+  if (v.kw !== null && !(v.kw > 0)) return { field: logKwInput, text: "Charger power must be greater than 0 kW." };
+  if (v.start === null || !(v.start >= 0 && v.start <= 100)) return { field: logStartInput, text: "Start % must be between 0 and 100." };
+  if (v.end === null || !(v.end >= 0 && v.end <= 100)) return { field: logEndInput, text: "End % must be between 0 and 100." };
+  if (v.end <= v.start) return { field: logEndInput, text: "End % must be higher than start %." };
+  if (v.kwh === null || !(v.kwh > 0)) return { field: logKwhInput, text: "kWh billed must be greater than 0." };
+  if (v.amount === null || !(v.amount >= 0)) return { field: logAmountInput, text: "Please enter the amount you paid." };
+  if (v.rate !== null && !(v.rate >= 0)) return { field: logRateInput, text: "Rate can't be negative." };
+  if (!(v.idle >= 0)) return { field: logIdleInput, text: "Idle time can't be negative." };
+  if (v.odo !== null && !(v.odo >= 0)) return { field: logOdoInput, text: "Odometer can't be negative." };
+  if (!(v.capacity > 0)) return { field: logStartInput, text: "Set your battery capacity on the Calculator first." };
+  return null;
+}
+
+function updateLogPreview() {
+  const v = readLogForm();
+  const parts = [];
+  if (v.efficiency !== null && v.efficiency > 0) parts.push(`Real efficiency ${formatPercent(v.efficiency * 100)}%`);
+  if (v.effectiveRate !== null) {
+    parts.push(`Effective ${formatRate(v.effectiveRate)}${v.fees > 0 ? ` incl. ₹${formatMoney(v.fees)} fees` : ""}`);
+  }
+  logPreviewEl.textContent = parts.length ? parts.join(" · ") : "Fill in start %, end %, kWh billed and amount paid.";
+}
+
+function uniqueTimestamp(entries, t) {
+  let ms = t;
+  while (entries.some((e) => e.t === ms)) ms += 1;
+  return ms;
+}
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function saveLogForm(event) {
+  event.preventDefault();
+  if (!currentUser) return;
+  const v = readLogForm();
+  const error = logFormError(v);
+  [logDateInput, ...logFormNumbers()].forEach((el) => el.classList.toggle("invalid", Boolean(error) && el === error.field));
+  if (error) {
+    logMessageEl.textContent = error.text;
+    logMessageEl.hidden = false;
+    error.field.focus();
+    return;
+  }
+
+  const entries = loadLog(currentUser);
+  const learnedBefore = computeLearned(entries);
+  const gstIncluded = v.op ? v.op.g : gstToggle.checked;
+  const entry = {
+    t: uniqueTimestamp(entries, v.t),
+    e: round2(v.energy),
+    c: round2(v.amount),
+    r: round2(v.rate ?? v.amount / v.kwh),
+    g: v.op && !v.op.g ? 2 : gstIncluded ? 1 : 0,
+    k: v.kw ?? "",
+    b: round2(v.kwh),
+    s: v.start,
+    f: v.end,
+    y: v.type,
+    x: Math.round(v.efficiency * 10000) / 10000,
+    q: round2(v.effectiveRate),
+  };
+  if (v.op) {
+    entry.o = v.op.n;
+    entry.oi = v.op.id;
+  }
+  if (v.fees > 0) entry.fe = round2(v.fees);
+  if (v.idle > 0) entry.m = v.idle;
+  if (v.odo !== null) entry.d = v.odo;
+  const photoSkipped = Boolean(pendingPhoto) && !storageSet(photoKey(currentUser, entry.t), pendingPhoto);
+  if (pendingPhoto && !photoSkipped) entry.p = 1;
+  entries.push(entry);
+  entries.sort((a, b) => a.t - b.t);
+
+  if (!saveLog(currentUser, entries)) {
+    if (entry.p) {
+      try {
+        localStorage.removeItem(photoKey(currentUser, entry.t));
+      } catch {
+        /* ignore */
+      }
+    }
+    logMessageEl.textContent = "Couldn't save — storage is unavailable or full on this device.";
+    logMessageEl.hidden = false;
+    return;
+  }
+  closeLogForm();
+  setPendingPhoto(null);
   renderHistory();
-  showToast(`Logged ₹${formatMoney(lastResult.total)} for ${formatEnergy(lastResult.energy)} kWh`);
+  showToast(
+    photoSkipped
+      ? "Charge logged, but the receipt photo wasn't saved — this device's storage is full."
+      : `Logged ₹${formatMoney(entrySpent(entry))} for ${formatEnergy(entry.b)} kWh · ${formatPercent(entry.x * 100)}% efficient`
+  );
   pop(logBtn);
+  offerLearned(learnedBefore, entry.y);
+  calculate();
+}
+
+function offerLearned(before, type) {
+  const now = learned[type];
+  const toggle = type === "ac" ? useLearnedAcInput : useLearnedDcInput;
+  if (!now || before[type] || toggle.checked) return;
+  const manual = (type === "ac" ? acEfficiency : dcEfficiency) * 100;
+  const ok = window.confirm(
+    `voltIQ learned your real ${type.toUpperCase()} efficiency from ${now.n} charges: ${formatPercent(now.avg * 100)}% ` +
+      `(your setting is ${formatPercent(manual)}%). Use the learned value for calculations?`
+  );
+  if (ok) {
+    toggle.checked = true;
+    onLearnedToggle();
+  }
+}
+
+function onLearnedToggle() {
+  if (currentUser) savePrefs(currentUser);
+  calculate();
+}
+
+function logCharge() {
+  if (!currentUser || !lastResult) return;
+  openLogForm({
+    start: lastResult.current,
+    end: Math.round(lastResult.finalPct * 10) / 10,
+    kwh: round2(lastResult.energyToBuy),
+    amount: round2(lastResult.total),
+    rate: lastResult.rate,
+    operatorId: lastResult.operatorId,
+    type: lastResult.chargerType,
+    kw: lastResult.chargerKw,
+  });
 }
 
 function deleteEntry(timestamp) {
   if (!currentUser) return;
+  try {
+    localStorage.removeItem(photoKey(currentUser, timestamp));
+  } catch {
+    /* ignore */
+  }
   saveLog(currentUser, loadLog(currentUser).filter((e) => e.t !== timestamp));
   renderHistory();
+  calculate();
+}
+
+function csvCell(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function exportCsv() {
   if (!currentUser) return;
-  const rows = [["date", "energy_kwh", "cost_inr", "rate_inr_per_kwh", "gst_included", "charger_kw"]];
+  const rows = [[
+    "date", "energy_kwh", "cost_inr", "rate_inr_per_kwh", "gst_included", "charger_kw",
+    "kwh_billed", "start_pct", "end_pct", "charger_type", "operator", "odometer_km",
+    "real_efficiency_pct", "idle_minutes", "fees_inr", "effective_inr_per_kwh",
+  ]];
   loadLog(currentUser).forEach((e) => {
-    rows.push([new Date(e.t).toISOString(), e.e, e.c, e.r, e.g ? "yes" : "no", e.k]);
+    rows.push([
+      new Date(e.t).toISOString(), e.e, e.c, e.r, e.g === 2 ? "added" : e.g ? "yes" : "no", e.k,
+      e.b, e.s, e.f, e.y, e.o, e.d,
+      typeof e.x === "number" ? round2(e.x * 100) : "", e.m, e.fe, e.q,
+    ]);
   });
-  const csv = rows.map((r) => r.join(",")).join("\n");
+  const csv = rows.map((r) => r.map(csvCell).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -617,12 +1328,27 @@ function clearHistory() {
   } catch {
     /* ignore */
   }
+  removePhotos(currentUser);
   renderHistory();
+  calculate();
 }
 
 logBtn.addEventListener("click", logCharge);
+addChargeBtn.addEventListener("click", () => openLogForm());
 exportBtn.addEventListener("click", exportCsv);
 clearBtn.addEventListener("click", clearHistory);
+logForm.addEventListener("submit", saveLogForm);
+logForm.addEventListener("input", updateLogPreview);
+logForm.addEventListener("change", updateLogPreview);
+logCancelBtn.addEventListener("click", closeLogForm);
+logPhotoInput.addEventListener("change", onPhotoChange);
+logPhotoRemoveBtn.addEventListener("click", () => setPendingPhoto(null));
+photoCloseBtn.addEventListener("click", closePhoto);
+photoDialog.addEventListener("click", (event) => {
+  if (event.target === photoDialog) closePhoto();
+});
+useLearnedDcInput.addEventListener("change", onLearnedToggle);
+useLearnedAcInput.addEventListener("change", onLearnedToggle);
 
 /* ---------- Calculation ---------- */
 
@@ -654,10 +1380,117 @@ function updateEfficiency(input, key) {
   }
 
   input.classList.remove("invalid");
-  settingsMessageEl.hidden = [dcEfficiencyInput, acEfficiencyInput].every((el) => !el.classList.contains("invalid"));
+  syncSettingsMessage();
   if (key === DC_EFFICIENCY_KEY) dcEfficiency = percent / 100;
   else acEfficiency = percent / 100;
   storageSet(key, String(percent));
+  calculate();
+}
+
+function syncSettingsMessage() {
+  settingsMessageEl.hidden = settingsInputs().every((el) => !el.classList.contains("invalid"));
+}
+
+function settingsInputs() {
+  return [dcEfficiencyInput, acEfficiencyInput, carAcInput, carDcInput, dcTaperInput];
+}
+
+let dcTaper = DEFAULT_DC_TAPER;
+
+function loadTaper() {
+  const stored = storageGet(DC_TAPER_KEY);
+  const percent = Number(stored);
+  return stored !== null && Number.isFinite(percent) && percent >= 10 && percent <= 100
+    ? percent / 100
+    : DEFAULT_DC_TAPER;
+}
+
+function initTaper() {
+  dcTaper = loadTaper();
+  dcTaperInput.value = String(Number((dcTaper * 100).toFixed(10)));
+}
+
+function updateTaper() {
+  const percent = Number(dcTaperInput.value);
+  if (!dcTaperInput.value || !dcTaperInput.validity.valid || !Number.isFinite(percent) || percent < 10 || percent > 100) {
+    dcTaperInput.classList.add("invalid");
+    settingsMessageEl.textContent = "DC taper power must be between 10% and 100%.";
+    settingsMessageEl.hidden = false;
+    return;
+  }
+
+  dcTaperInput.classList.remove("invalid");
+  syncSettingsMessage();
+  dcTaper = percent / 100;
+  storageSet(DC_TAPER_KEY, String(percent));
+  calculate();
+}
+
+// Splits a charge into a full-power phase up to 80% and, on DC only, a tapered phase above 80%.
+function chargingPhases(current, target, capacity, powerBelow80, isDC, efficiency = 1) {
+  const split = isDC ? Math.min(Math.max(current, TAPER_SOC), target) : target;
+  const phases = [];
+  if (split > current) phases.push({ from: current, to: split, power: powerBelow80, tapered: false });
+  if (target > split) phases.push({ from: split, to: target, power: powerBelow80 * dcTaper, tapered: true });
+  return phases.map((phase) => {
+    const energyToBuy = (capacity * (phase.to - phase.from)) / 100 / efficiency;
+    const hours = energyToBuy / phase.power;
+    return { ...phase, energyToBuy, hours, minutes: hours * 60 };
+  });
+}
+
+// Battery-side kWh added in a given time, following the same phases as chargingPhases().
+function energyForHours(current, capacity, powerBelow80, isDC, efficiency, hours) {
+  if (!isDC) return powerBelow80 * hours * efficiency;
+  const taperPower = powerBelow80 * dcTaper;
+  if (current >= TAPER_SOC) return taperPower * hours * efficiency;
+  const energyTo80 = (capacity * (TAPER_SOC - current)) / 100;
+  const hoursTo80 = energyTo80 / efficiency / powerBelow80;
+  if (hours <= hoursTo80) return powerBelow80 * hours * efficiency;
+  return energyTo80 + taperPower * (hours - hoursTo80) * efficiency;
+}
+
+function renderPhases(phases) {
+  const split = phases.length === 2;
+  phasesEl.hidden = !split;
+  taperHintEl.hidden = !split;
+  if (!split) return;
+  phasesEl.textContent = phases
+    .map((p) => `${formatPercent(p.from)}→${formatPercent(p.to)}%: ${formatDuration(p.hours)}`)
+    .join(", ");
+  taperHintEl.textContent = `Stopping at ${TAPER_SOC}% saves ${formatDuration(phases[1].hours)}`;
+}
+
+let carAcKw = DEFAULT_CAR_AC_KW;
+let carDcKw = DEFAULT_CAR_DC_KW;
+
+function loadCarLimit(key, fallback) {
+  const stored = storageGet(key);
+  const kw = Number(stored);
+  return stored !== null && Number.isFinite(kw) && kw > 0 && kw <= 1000 ? kw : fallback;
+}
+
+function initCarProfile() {
+  carAcKw = loadCarLimit(CAR_AC_KEY, DEFAULT_CAR_AC_KW);
+  carDcKw = loadCarLimit(CAR_DC_KEY, DEFAULT_CAR_DC_KW);
+  carAcInput.value = String(carAcKw);
+  carDcInput.value = String(carDcKw);
+}
+
+function updateCarLimit(input, key) {
+  const kw = Number(input.value);
+  if (!input.value || !input.validity.valid || !Number.isFinite(kw) || kw <= 0 || kw > 1000) {
+    input.classList.add("invalid");
+    settingsMessageEl.textContent = "Car max power must be between 1 and 1000 kW.";
+    settingsMessageEl.hidden = false;
+    return;
+  }
+
+  input.classList.remove("invalid");
+  syncSettingsMessage();
+  if (key === CAR_AC_KEY) carAcKw = kw;
+  else carDcKw = kw;
+  storageSet(key, String(kw));
   calculate();
 }
 
@@ -672,10 +1505,33 @@ function selectedChargerKw() {
   return checked ? parseFloat(checked.value) : NaN;
 }
 
-function selectedEfficiency() {
+function selectedChargerType() {
   const checked = chargerInputs.find((el) => el.checked);
   const type = checked?.value === "custom" ? customTypeInput.value : checked?.dataset.type;
-  return type === "ac" ? acEfficiency : dcEfficiency;
+  return type === "ac" ? "ac" : "dc";
+}
+
+function carLimitKw(type) {
+  return type === "ac" ? carAcKw : carDcKw;
+}
+
+function effectivePower() {
+  return Math.min(selectedChargerKw(), carLimitKw(selectedChargerType()));
+}
+
+function updatePowerNote(chargerKw) {
+  const type = selectedChargerType();
+  const limit = carLimitKw(type);
+  const limited = limit < chargerKw;
+  powerNoteEl.hidden = !limited;
+  if (limited) {
+    powerNoteEl.textContent = `Your car accepts max ${formatKw(limit)} kW ${type.toUpperCase()}`;
+  }
+}
+
+function selectedEfficiency() {
+  const type = selectedChargerType();
+  return learnedEfficiency(type) ?? (type === "ac" ? acEfficiency : dcEfficiency);
 }
 
 function syncCustomCharger() {
@@ -752,12 +1608,25 @@ function onModeChange() {
   if (currentUser) savePrefs(currentUser);
 }
 
-function updateRateLabel() {
-  rateValueEl.textContent = formatRate(parseFloat(rateInput.value));
+// "incl" = rate already includes GST, "added" = operator adds 18% on top, "none" = no GST
+function gstMode() {
+  if (gstToggle.checked) return "incl";
+  return selectedOperator() ? "added" : "none";
 }
 
-function updateHeroSub(rate, gstOn) {
-  heroSubEl.textContent = `at ${formatRate(rate)} · ${gstOn ? "includes 18% GST" : "no GST"}`;
+const GST_LABELS = { incl: "incl. GST", added: "+18% GST", none: "no GST" };
+
+function updateRateLabel() {
+  const op = selectedOperator();
+  rateValueEl.textContent = `${formatRate(parseFloat(rateInput.value))} · ${GST_LABELS[gstMode()]}`;
+  gstLabelEl.textContent = op ? "Rate includes 18% GST" : "Include 18% GST";
+}
+
+function updateHeroSub(rate, mode) {
+  const op = selectedOperator();
+  const parts = [`at ${formatRate(rate)} ${GST_LABELS[mode]}`];
+  if (op) parts.push(op.n, ...formatOperatorFees(op).map((fee) => `+ ${fee}`));
+  heroSubEl.textContent = parts.join(" · ");
 }
 
 function calculate() {
@@ -769,10 +1638,12 @@ function calculate() {
   const minutes = parseFloat(timeInput.value);
   const chargerKw = selectedChargerKw();
   const rate = parseFloat(rateInput.value);
-  const gstOn = gstToggle.checked;
+  const gstOn = gstMode();
+  const grossRate = gstOn === "added" ? rate * (1 + GST_RATE) : rate;
 
+  updateRateLabel();
   updateHeroSub(rate, gstOn);
-  gstRowEl.hidden = !gstOn;
+  gstRowEl.hidden = gstOn === "none";
 
   const modeInput = mode === "amount" ? budgetInput : mode === "time" ? timeInput : null;
   if (currentInput.value.trim() === "" || (modeInput && modeInput.value.trim() === "")) {
@@ -794,21 +1665,22 @@ function calculate() {
   if (currentUser) savePrefs(currentUser);
 
   const efficiency = selectedEfficiency();
+  const power = effectivePower();
+  const isDC = selectedChargerType() === "dc";
+  updatePowerNote(chargerKw);
   let energy;
   let energyToBuy;
   let hours;
   if (mode === "amount") {
-    energyToBuy = budget / rate;
+    energyToBuy = budget / grossRate;
     energy = energyToBuy * efficiency;
-    hours = energyToBuy / chargerKw;
   } else if (mode === "time") {
     hours = minutes / 60;
-    energyToBuy = chargerKw * hours;
-    energy = energyToBuy * efficiency;
+    energy = energyForHours(current, capacity, power, isDC, efficiency, hours);
+    energyToBuy = energy / efficiency;
   } else {
     energy = (capacity * (target - current)) / 100;
     energyToBuy = energy / efficiency;
-    hours = energyToBuy / chargerKw;
   }
 
   const room = (capacity * (100 - current)) / 100;
@@ -816,15 +1688,29 @@ function calculate() {
   if (capped) {
     energy = room;
     energyToBuy = energy / efficiency;
-    hours = energyToBuy / chargerKw;
   }
 
   const finalPct = mode === "target" ? target : Math.min(100, current + (energy / capacity) * 100);
-  const total = mode === "amount" && !capped ? budget : energyToBuy * rate;
-  const base = gstOn ? total / (1 + GST_RATE) : total;
+  const phases = chargingPhases(current, finalPct, capacity, power, isDC, efficiency);
+  if (mode !== "time" || capped) hours = phases.reduce((sum, p) => sum + p.hours, 0);
+  const total = mode === "amount" && !capped ? budget : energyToBuy * grossRate;
+  const base = gstOn === "none" ? total : total / (1 + GST_RATE);
   const gst = total - base;
   const enterKwh = kwhToEnter(energyToBuy);
-  lastResult = { mode, energy, total, rate, gstOn, chargerKw, enterKwh, finalPct };
+  lastResult = {
+    mode,
+    energy,
+    energyToBuy,
+    total,
+    rate,
+    gstOn,
+    chargerKw,
+    chargerType: selectedChargerType(),
+    operatorId: operatorSelect.value,
+    current,
+    enterKwh,
+    finalPct,
+  };
 
   if (mode === "target") {
     animateNumber(enterKwhEl, enterKwh, (v) => Math.round(v).toLocaleString("en-IN"));
@@ -839,6 +1725,7 @@ function calculate() {
   animateNumber(baseEl, base, formatMoney);
   animateNumber(gstEl, gst, formatMoney);
   timeEl.textContent = `~${formatDuration(hours)}`;
+  renderPhases(phases);
 
   capNoteEl.hidden = !capped;
   if (capped) {
@@ -908,18 +1795,23 @@ currentDecBtn.addEventListener("click", () => stepCurrent(-1));
 currentIncBtn.addEventListener("click", () => stepCurrent(1));
 targetPresetInputs.forEach((el) => el.addEventListener("change", onTargetPresetChange));
 modeInputs.forEach((el) => el.addEventListener("change", onModeChange));
-rateInput.addEventListener("input", () => {
+rateInput.addEventListener("input", onRateInput);
+gstToggle.addEventListener("change", () => {
   updateRateLabel();
   calculate();
 });
-gstToggle.addEventListener("change", calculate);
 customTypeInput.addEventListener("change", calculate);
 dcEfficiencyInput.addEventListener("change", () => updateEfficiency(dcEfficiencyInput, DC_EFFICIENCY_KEY));
 acEfficiencyInput.addEventListener("change", () => updateEfficiency(acEfficiencyInput, AC_EFFICIENCY_KEY));
+carAcInput.addEventListener("change", () => updateCarLimit(carAcInput, CAR_AC_KEY));
+carDcInput.addEventListener("change", () => updateCarLimit(carDcInput, CAR_DC_KEY));
+dcTaperInput.addEventListener("change", updateTaper);
 
 initTheme();
 initUser();
 initEfficiency();
+initCarProfile();
+initTaper();
 updateRateLabel();
 syncCustomCharger();
 syncTargetPreset();
