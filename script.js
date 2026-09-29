@@ -15,6 +15,8 @@ const USER_KEY = "voltiq-user";
 const LOG_PREFIX = "voltiq-log:";
 const PREFS_PREFIX = "voltiq-prefs:";
 const OPERATORS_PREFIX = "voltiq-operators:";
+const PHOTO_PREFIX = "voltiq-photo:";
+const MAX_PHOTO_CHARS = 250000;
 const MAX_LOG_ENTRIES = 500;
 
 const capacityInput = document.getElementById("capacity");
@@ -132,6 +134,13 @@ const learnAcEl = document.getElementById("learn-ac");
 const learnDcTextEl = document.getElementById("learn-dc-text");
 const learnAcTextEl = document.getElementById("learn-ac-text");
 const learnHintEl = document.getElementById("learn-hint");
+const logPhotoInput = document.getElementById("log-photo");
+const logPhotoPreviewEl = document.getElementById("log-photo-preview");
+const logPhotoImg = document.getElementById("log-photo-img");
+const logPhotoRemoveBtn = document.getElementById("log-photo-remove");
+const photoDialog = document.getElementById("photo-dialog");
+const photoFullImg = document.getElementById("photo-full");
+const photoCloseBtn = document.getElementById("photo-close");
 
 const numberInputs = [capacityInput, currentInput, targetInput, budgetInput, timeInput, customKwInput];
 const outputEls = [enterKwhEl, finalPctEl, energyEl, energyBuyEl, timeEl, totalEl, totalBreakdownEl, baseEl, gstEl];
@@ -324,12 +333,30 @@ function logKey(user) {
   return LOG_PREFIX + user;
 }
 
+function photoKey(user, timestamp) {
+  return `${PHOTO_PREFIX}${user}:${timestamp}`;
+}
+
+function removePhotos(user) {
+  try {
+    const prefix = `${PHOTO_PREFIX}${user}:`;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) keys.push(key);
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* ignore */
+  }
+}
+
 // Entries are stored compactly (fields after k were added with the log form; older entries may lack them):
 // t = timestamp (ms), e = battery kWh added, c = ₹ amount paid, r = ₹/kWh,
 // g = GST (1 = incl., 2 = added on top, 0 = none), k = charger kW, b = kWh billed,
 // s = start %, f = end %, y = charger type ("ac"/"dc"), o = operator name, oi = operator id,
 // d = odometer km, m = idle minutes, fe = ₹ session + idle fees, x = real efficiency (0–1),
-// q = effective ₹/kWh incl. fees
+// q = effective ₹/kWh incl. fees, p = 1 when a receipt photo is stored under photoKey(user, t)
 function loadLog(user) {
   const raw = storageGet(logKey(user));
   if (!raw) return [];
@@ -502,6 +529,7 @@ function deleteUser(user) {
     localStorage.removeItem(logKey(user));
     localStorage.removeItem(prefsKey(user));
     localStorage.removeItem(operatorsKey(user));
+    removePhotos(user);
   } catch {
     /* ignore */
   }
@@ -913,12 +941,37 @@ function renderHistory() {
         del.setAttribute("aria-label", "Delete this entry");
         del.textContent = "×";
         del.addEventListener("click", () => deleteEntry(entry.t));
+        const photo = entry.p ? storageGet(photoKey(currentUser, entry.t)) : null;
+        if (photo) {
+          const thumb = document.createElement("button");
+          thumb.type = "button";
+          thumb.className = "photo-thumb";
+          thumb.setAttribute("aria-label", "View receipt photo");
+          const img = document.createElement("img");
+          img.src = photo;
+          img.alt = "";
+          thumb.append(img);
+          thumb.addEventListener("click", () => openPhoto(photo));
+          side.append(thumb);
+        }
         side.append(date, del);
 
         li.append(main, side);
         return li;
       })
   );
+}
+
+function openPhoto(src) {
+  photoFullImg.src = src;
+  if (typeof photoDialog.showModal === "function") photoDialog.showModal();
+  else photoDialog.setAttribute("open", "");
+}
+
+function closePhoto() {
+  if (typeof photoDialog.close === "function") photoDialog.close();
+  else photoDialog.removeAttribute("open");
+  photoFullImg.removeAttribute("src");
 }
 
 function showToast(text) {
@@ -955,9 +1008,80 @@ function renderLogOperators(selectedId) {
   logOperatorSelect.value = findOperator(selectedId) ? selectedId : "";
 }
 
+let pendingPhoto = null;
+
+function setPendingPhoto(dataUrl) {
+  pendingPhoto = dataUrl;
+  logPhotoPreviewEl.hidden = !dataUrl;
+  if (dataUrl) logPhotoImg.src = dataUrl;
+  else {
+    logPhotoImg.removeAttribute("src");
+    logPhotoInput.value = "";
+  }
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Downscales and re-encodes as JPEG until the data URL fits MAX_PHOTO_CHARS.
+async function compressPhoto(file) {
+  const img = await loadImage(await readFileAsDataUrl(file));
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  let maxSide = 1024;
+  let quality = 0.7;
+  while (maxSide >= 320) {
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    if (dataUrl.length <= MAX_PHOTO_CHARS) return dataUrl;
+    if (quality > 0.45) quality -= 0.15;
+    else maxSide = Math.round(maxSide * 0.75);
+  }
+  return null;
+}
+
+async function onPhotoChange() {
+  const file = logPhotoInput.files && logPhotoInput.files[0];
+  logMessageEl.hidden = true;
+  if (!file) {
+    setPendingPhoto(null);
+    return;
+  }
+  try {
+    const dataUrl = await compressPhoto(file);
+    if (!dataUrl) throw new Error("too large");
+    setPendingPhoto(dataUrl);
+  } catch {
+    setPendingPhoto(null);
+    logMessageEl.textContent = "Couldn't read that photo — try a smaller image.";
+    logMessageEl.hidden = false;
+  }
+}
+
 function openLogForm(values = {}) {
   if (!currentUser) return;
   logForm.reset();
+  setPendingPhoto(null);
   logFormNumbers().forEach((el) => el.classList.remove("invalid"));
   logMessageEl.hidden = true;
   logDateInput.value = toLocalInput(Date.now());
@@ -1088,17 +1212,31 @@ function saveLogForm(event) {
   if (v.fees > 0) entry.fe = round2(v.fees);
   if (v.idle > 0) entry.m = v.idle;
   if (v.odo !== null) entry.d = v.odo;
+  const photoSkipped = Boolean(pendingPhoto) && !storageSet(photoKey(currentUser, entry.t), pendingPhoto);
+  if (pendingPhoto && !photoSkipped) entry.p = 1;
   entries.push(entry);
   entries.sort((a, b) => a.t - b.t);
 
   if (!saveLog(currentUser, entries)) {
+    if (entry.p) {
+      try {
+        localStorage.removeItem(photoKey(currentUser, entry.t));
+      } catch {
+        /* ignore */
+      }
+    }
     logMessageEl.textContent = "Couldn't save — storage is unavailable or full on this device.";
     logMessageEl.hidden = false;
     return;
   }
   closeLogForm();
+  setPendingPhoto(null);
   renderHistory();
-  showToast(`Logged ₹${formatMoney(entrySpent(entry))} for ${formatEnergy(entry.b)} kWh · ${formatPercent(entry.x * 100)}% efficient`);
+  showToast(
+    photoSkipped
+      ? "Charge logged, but the receipt photo wasn't saved — this device's storage is full."
+      : `Logged ₹${formatMoney(entrySpent(entry))} for ${formatEnergy(entry.b)} kWh · ${formatPercent(entry.x * 100)}% efficient`
+  );
   pop(logBtn);
   offerLearned(learnedBefore, entry.y);
   calculate();
@@ -1125,12 +1263,26 @@ function onLearnedToggle() {
 }
 
 function logCharge() {
-  if (!currentUser) return;
-  openLogForm();
+  if (!currentUser || !lastResult) return;
+  openLogForm({
+    start: lastResult.current,
+    end: Math.round(lastResult.finalPct * 10) / 10,
+    kwh: round2(lastResult.energyToBuy),
+    amount: round2(lastResult.total),
+    rate: lastResult.rate,
+    operatorId: lastResult.operatorId,
+    type: lastResult.chargerType,
+    kw: lastResult.chargerKw,
+  });
 }
 
 function deleteEntry(timestamp) {
   if (!currentUser) return;
+  try {
+    localStorage.removeItem(photoKey(currentUser, timestamp));
+  } catch {
+    /* ignore */
+  }
   saveLog(currentUser, loadLog(currentUser).filter((e) => e.t !== timestamp));
   renderHistory();
   calculate();
@@ -1176,6 +1328,7 @@ function clearHistory() {
   } catch {
     /* ignore */
   }
+  removePhotos(currentUser);
   renderHistory();
   calculate();
 }
@@ -1188,6 +1341,12 @@ logForm.addEventListener("submit", saveLogForm);
 logForm.addEventListener("input", updateLogPreview);
 logForm.addEventListener("change", updateLogPreview);
 logCancelBtn.addEventListener("click", closeLogForm);
+logPhotoInput.addEventListener("change", onPhotoChange);
+logPhotoRemoveBtn.addEventListener("click", () => setPendingPhoto(null));
+photoCloseBtn.addEventListener("click", closePhoto);
+photoDialog.addEventListener("click", (event) => {
+  if (event.target === photoDialog) closePhoto();
+});
 useLearnedDcInput.addEventListener("change", onLearnedToggle);
 useLearnedAcInput.addEventListener("change", onLearnedToggle);
 
@@ -1538,7 +1697,20 @@ function calculate() {
   const base = gstOn === "none" ? total : total / (1 + GST_RATE);
   const gst = total - base;
   const enterKwh = kwhToEnter(energyToBuy);
-  lastResult = { mode, energy, total, rate, gstOn, chargerKw, enterKwh, finalPct };
+  lastResult = {
+    mode,
+    energy,
+    energyToBuy,
+    total,
+    rate,
+    gstOn,
+    chargerKw,
+    chargerType: selectedChargerType(),
+    operatorId: operatorSelect.value,
+    current,
+    enterKwh,
+    finalPct,
+  };
 
   if (mode === "target") {
     animateNumber(enterKwhEl, enterKwh, (v) => Math.round(v).toLocaleString("en-IN"));

@@ -369,6 +369,14 @@
           <label for="log-odo">Odometer <span class="unit">km, optional</span></label>
           <input type="number" id="log-odo" min="0" step="any" inputmode="numeric" />
         </div>
+        <div class="field">
+          <label for="log-photo">Receipt photo <span class="unit">optional, stays on this device</span></label>
+          <input type="file" id="log-photo" class="file-input" accept="image/*" />
+          <div id="log-photo-preview" class="photo-preview" hidden>
+            <img id="log-photo-img" alt="Receipt photo preview" />
+            <button type="button" id="log-photo-remove" class="btn btn-ghost btn-danger">Remove photo</button>
+          </div>
+        </div>
         <p id="log-preview" class="cap-note" role="status"></p>
         <p id="log-message" class="message" role="alert" hidden></p>
         <div class="history-actions">
@@ -376,6 +384,11 @@
           <button type="submit" class="btn btn-primary">Save charge</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="photo-dialog" class="log-dialog photo-dialog" aria-label="Receipt photo">
+      <img id="photo-full" alt="Receipt photo" />
+      <button type="button" id="photo-close" class="btn btn-block">Close</button>
     </dialog>
 
     <footer class="footer">

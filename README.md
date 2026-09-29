@@ -106,6 +106,18 @@ need and what it will cost.
     (capacity is taken from the Calculator).
   - **Effective ₹/kWh** = `(amount paid + session fee + idle fee × idle minutes) ÷ kWh billed`,
     using the selected operator's fees.
+- **Pre-filled from the calculation**: **Log this charge** opens the form
+  already filled in from the current result — start % (current charge), end %
+  (target or the computed final %), kWh billed (the estimate to enter), amount,
+  rate, operator, charger type and kW. Just correct anything that differs from
+  the receipt and save. (**+ Add a charge** on History opens it blank.)
+- **Receipt photo** (optional): attach an image in the log form. It is
+  downscaled and re-encoded as a JPEG data URL (at most ~250 KB) and kept only
+  on this device in localStorage under `voltiq-photo:<username>:<timestamp>`;
+  the entry gets `p: 1`. History shows a thumbnail — tap it to view the photo.
+  If the device's storage is full, the charge is still logged and voltIQ tells
+  you the photo wasn't saved. Deleting an entry, clearing history or deleting
+  the user also deletes its photos.
 - **Learning your real efficiency**: once 3 or more logged charges of the same
   type (AC or DC) have a plausible real efficiency (50–100%), voltIQ averages
   them and offers to use the learned value instead of the manual DC / AC
@@ -120,7 +132,8 @@ need and what it will cost.
     `t` date, `e` battery kWh added, `c` ₹ paid, `r` ₹/kWh, `g` GST
     (1 incl. / 2 added / 0 none), `k` charger kW, `b` kWh billed, `s` start %,
     `f` end %, `y` ac/dc, `o`/`oi` operator name/id, `d` odometer km,
-    `m` idle minutes, `fe` fees ₹, `x` real efficiency, `q` effective ₹/kWh.
+    `m` idle minutes, `fe` fees ₹, `x` real efficiency, `q` effective ₹/kWh,
+    `p` receipt photo stored.
     Entries logged by older versions (`t, e, c, r, g, k` only) still display,
     count in the totals and export.
   - The CSV has the columns `date, energy_kwh, cost_inr, rate_inr_per_kwh,
